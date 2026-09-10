@@ -6,6 +6,8 @@ export type VentaItemInput = {
   productoId: string;
   cantidad: number;
   notas?: string;
+  /** Si viene (ej. desde una comanda), se respeta ese precio congelado en vez del precio actual del producto. */
+  precioUnit?: number;
 };
 
 export type CrearVentaParams = {
@@ -48,7 +50,7 @@ export async function crearVenta(params: CrearVentaParams) {
       if (Number(producto.stockActual) < item.cantidad) {
         throw new Error(`Stock insuficiente de "${producto.nombre}" (quedan ${producto.stockActual})`);
       }
-      const precioUnit = Number(producto.precio);
+      const precioUnit = item.precioUnit ?? Number(producto.precio);
       const total = precioUnit * item.cantidad;
       subtotal += total;
       return {
