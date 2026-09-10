@@ -36,3 +36,23 @@ export async function publishStockAlerts() {
   const alertas = await getStockBajo();
   await redisPublisher.publish(CHANNELS.STOCK_ALERTS, JSON.stringify(alertas));
 }
+
+export type VentaEventItem = {
+  productoNombre: string;
+  cantidad: string;
+  notas: string | null;
+};
+
+export type VentaEvent = {
+  id: string;
+  codigo: string;
+  nombreCliente: string;
+  origen: "MOSTRADOR" | "COMANDA";
+  estado: "RECIBIDO" | "EN_PREPARACION" | "LISTO" | "ENTREGADO";
+  createdAt: string;
+  items: VentaEventItem[];
+};
+
+export async function publishVentaEvent(venta: VentaEvent) {
+  await redisPublisher.publish(CHANNELS.VENTAS, JSON.stringify(venta));
+}
