@@ -1,0 +1,142 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Categoria {
+  id        String     @id @default(cuid())
+  nombre    String
+  icono     String?
+  productos Producto[]
+}
+
+model Producto {
+  id           String        @id @default(cuid())
+  codigo       String        @unique
+  nombre       String
+  categoriaId  String
+  precio       Decimal
+  tipoUnidad   TipoUnidad    @default(UNIDAD)
+  descripcion  String?
+  stockActual  Decimal
+  stockMinimo  Decimal       @default(5)
+  imagenUrl    String?
+  activo       Boolean       @default(true)
+  categoria    Categoria     @relation(fields: [categoriaId], references: [id])
+  ventaItems   VentaItem[]
+  comandaItems ComandaItem[]
+}
+
+model Comanda {
+  id            String        @id @default(cuid())
+  codigo        String
+  nombreCliente String?
+  estado        EstadoComanda @default(ABIERTA)
+  abiertaEn     DateTime      @default(now())
+  cerradaEn     DateTime?
+  items         ComandaItem[]
+  venta         Venta?
+}
+
+model ComandaItem {
+  id         String   @id @default(cuid())
+  comandaId  String
+  productoId String
+  cantidad   Decimal
+  precioUnit Decimal
+  notas      String?
+  comanda    Comanda  @relation(fields: [comandaId], references: [id])
+  producto   Producto @relation(fields: [productoId], references: [id])
+}
+
+model Venta {
+  id            String      @id @default(cuid())
+  codigo        String      @unique
+  comandaId     String?     @unique
+  origen        OrigenVenta
+  nombreCliente String      @default("Mostrador")
+  subtotal      Decimal
+  descuento     Decimal     @default(0)
+  total         Decimal
+  metodoPago    MetodoPago
+  estado        EstadoVenta @default(RECIBIDO)
+  cajaSesionId  String
+  operadorId    String
+  comanda       Comanda?    @relation(fields: [comandaId], references: [id])
+  cajaSesion    CajaSesion  @relation(fields: [cajaSesionId], references: [id])
+  items         VentaItem[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model VentaItem {
+  id         String   @id @default(cuid())
+  ventaId    String
+  productoId String
+  cantidad   Decimal
+  precioUnit Decimal
+  total      Decimal
+  notas      String?
+  venta      Venta    @relation(fields: [ventaId], references: [id])
+  producto   Producto @relation(fields: [productoId], references: [id])
+}
+
+model CajaSesion {
+  id           String           @id @default(cuid())
+  abierta      Boolean          @default(true)
+  fondoInicial Decimal
+  operadorId   String
+  abiertaEn    DateTime         @default(now())
+  cerradaEn    DateTime?
+  movimientos  CajaMovimiento[]
+  ventas       Venta[]
+}
+
+model CajaMovimiento {
+  id           String         @id @default(cuid())
+  cajaSesionId String
+  tipo         TipoMovimiento
+  monto        Decimal
+  descripcion  String?
+  cajaSesion   CajaSesion     @relation(fields: [cajaSesionId], references: [id])
+  createdAt    DateTime       @default(now())
+}
+
+enum TipoUnidad {
+  UNIDAD
+  KG
+}
+
+enum EstadoComanda {
+  ABIERTA
+  CERRADA
+}
+
+enum OrigenVenta {
+  MOSTRADOR
+  COMANDA
+}
+
+enum EstadoVenta {
+  RECIBIDO
+  EN_PREPARACION
+  LISTO
+  ENTREGADO
+}
+
+enum MetodoPago {
+  EFECTIVO
+  TARJETA_CREDITO
+  TARJETA_DEBITO
+  TRANSFERENCIA
+}
+
+enum TipoMovimiento {
+  SANGRIA
+  SUMINISTRO
+}
