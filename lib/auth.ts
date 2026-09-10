@@ -21,3 +21,12 @@ export async function getCurrentUser(): Promise<{ userId: string; role: Role | n
   const role = (user.publicMetadata as { role?: Role } | undefined)?.role ?? null;
   return { userId: user.id, role };
 }
+
+/** Para usar en server actions y route handlers: corta con un error/401 si el rol no matchea. */
+export async function requireRole(allowed: Role[]) {
+  const { userId, role } = await getCurrentUser();
+  if (!userId || !role || !allowed.includes(role)) {
+    throw new Error("No autorizado");
+  }
+  return { userId, role };
+}
