@@ -10,11 +10,19 @@ const globalForRedis = globalThis as unknown as {
   redisPublisher: Redis | undefined;
 };
 
-/** Cliente compartido, solo para publish. */
-export const redisPublisher =
-  globalForRedis.redisPublisher ?? new Redis(getRedisUrl());
-
-if (process.env.NODE_ENV !== "production") globalForRedis.redisPublisher = redisPublisher;
+/**
+ * Cliente compartido, solo para publish. Se crea recién en el primer uso
+ * (no al importar el módulo) para no abrir una conexión real durante el
+ * build de Next.js (Vercel evalúa los módulos al "recolectar datos de
+ * página" y no siempre tiene las env vars ahí, ni hace falta una conexión
+ * real en ese paso).
+ */
+export function getRedisPublisher(): Redis {
+  if (!globalForRedis.redisPublisher) {
+    globalForRedis.redisPublisher = new Redis(getRedisUrl());
+  }
+  return globalForRedis.redisPublisher;
+}
 
 /**
  * Un cliente en modo subscribe no puede ejecutar otros comandos, así que

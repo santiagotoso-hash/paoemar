@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { redisPublisher } from "@/lib/redis";
+import { getRedisPublisher } from "@/lib/redis";
 
 export const CHANNELS = {
   VENTAS: "ventas",
@@ -34,7 +34,7 @@ export async function getStockBajo(): Promise<StockAlertProducto[]> {
 
 export async function publishStockAlerts() {
   const alertas = await getStockBajo();
-  await redisPublisher.publish(CHANNELS.STOCK_ALERTS, JSON.stringify(alertas));
+  await getRedisPublisher().publish(CHANNELS.STOCK_ALERTS, JSON.stringify(alertas));
 }
 
 export type VentaEventItem = {
@@ -54,5 +54,5 @@ export type VentaEvent = {
 };
 
 export async function publishVentaEvent(venta: VentaEvent) {
-  await redisPublisher.publish(CHANNELS.VENTAS, JSON.stringify(venta));
+  await getRedisPublisher().publish(CHANNELS.VENTAS, JSON.stringify(venta));
 }
