@@ -16,9 +16,20 @@ const config: Config = {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ["var(--font-geist-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
+        heading: ["var(--font-playfair)", "Georgia", "serif"],
+      },
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
+        header: {
+          DEFAULT: "var(--header-bg)",
+          foreground: "var(--header-fg)",
+          muted: "var(--header-fg-muted)",
+          accent: "var(--header-accent)",
+          border: "var(--header-border)",
+        },
         card: {
           DEFAULT: "var(--card)",
           foreground: "var(--card-foreground)",

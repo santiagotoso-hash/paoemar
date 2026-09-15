@@ -18,16 +18,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="mx-auto flex min-h-screen max-w-5xl flex-col gap-6 p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Admin</h1>
-        <Link href="/" className="text-sm text-muted-foreground hover:underline">
-          ← Volver al inicio
-        </Link>
-      </div>
+      <h1 className="font-heading text-2xl font-semibold">Admin</h1>
 
       <StockAlertsBanner alertasIniciales={alertasIniciales} />
 
-      <nav className="flex gap-2 border-b">
+      <nav className="flex gap-2 border-b border-border">
         {TABS.map((tab) => (
           <Link
             key={tab.href}
