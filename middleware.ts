@@ -1,6 +1,6 @@
 import { clerkMiddleware, clerkClient, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { ROUTE_ROLES, type Role } from "@/lib/auth";
+import { ROUTE_ROLES, resolveRole, type Role } from "@/lib/auth";
 
 const isProtectedRoute = createRouteMatcher([
   "/admin(.*)",
@@ -18,7 +18,9 @@ export default clerkMiddleware(async (auth, req) => {
 
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
-  const role = (user.publicMetadata as { role?: Role } | undefined)?.role;
+  const rawRole = (user.publicMetadata as { role?: Role } | undefined)?.role ?? null;
+  const email = user.emailAddresses.find((e) => e.id === user.primaryEmailAddressId)?.emailAddress;
+  const role = await resolveRole(userId, email, rawRole);
 
   const prefix = Object.keys(ROUTE_ROLES).find((p) => req.nextUrl.pathname.startsWith(p));
   const allowedRoles = prefix ? ROUTE_ROLES[prefix] : [];
