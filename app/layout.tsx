@@ -4,6 +4,7 @@ import { Playfair_Display } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "@/components/ui/sonner";
 import { AppHeader } from "@/components/app-header";
+import { WaveBackground } from "@/components/wave-background";
 import "./globals.css";
 
 const geistSans = localFont({
@@ -52,6 +53,7 @@ export default function RootLayout({
         <body
           className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} font-sans antialiased`}
         >
+          <WaveBackground />
           <AppHeader />
           {children}
           <Toaster />
