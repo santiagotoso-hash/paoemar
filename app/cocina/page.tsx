@@ -1,12 +1,24 @@
+import type { EstadoVenta } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { numerosRondas, rondaCocinaInclude, rondaParaEvento } from "@/lib/rondas";
 import { CocinaBoard } from "./cocina-board";
 
 export default async function CocinaPage() {
-  const ventas = await prisma.venta.findMany({
-    where: { estado: { in: ["RECIBIDO", "EN_PREPARACION", "LISTO"] } },
-    include: { items: { include: { producto: true } } },
-    orderBy: { createdAt: "asc" },
-  });
+  const pendientes = { estado: { in: ["RECIBIDO", "EN_PREPARACION", "LISTO"] as EstadoVenta[] } };
+
+  const [ventas, rondas] = await Promise.all([
+    prisma.venta.findMany({
+      where: pendientes,
+      include: { items: { include: { producto: true } } },
+      orderBy: { createdAt: "asc" },
+    }),
+    // Rodadas lanzadas desde las mesas
+    prisma.ronda.findMany({
+      where: pendientes,
+      include: rondaCocinaInclude,
+      orderBy: { creadaEn: "asc" },
+    }),
+  ]);
 
   const ventasIniciales = ventas.map((v) => ({
     id: v.id,
@@ -22,5 +34,12 @@ export default async function CocinaPage() {
     })),
   }));
 
-  return <CocinaBoard ventasIniciales={ventasIniciales} />;
+  const numeros = await numerosRondas(rondas);
+  const rondasIniciales = rondas.map((r) => rondaParaEvento(r, numeros.get(r.id) ?? 1));
+
+  const todos = [...ventasIniciales, ...rondasIniciales].sort((a, b) =>
+    a.createdAt.localeCompare(b.createdAt)
+  );
+
+  return <CocinaBoard ventasIniciales={todos} />;
 }

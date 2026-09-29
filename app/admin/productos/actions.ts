@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth";
+import { requireRole, ROUTE_ROLES } from "@/lib/auth";
 import { publishStockAlerts } from "@/lib/realtime";
 
 const productoSchema = z.object({
@@ -18,7 +18,7 @@ const productoSchema = z.object({
 });
 
 export async function crearProducto(input: unknown) {
-  await requireRole(["admin"]);
+  await requireRole(ROUTE_ROLES["/admin"]);
   const data = productoSchema.parse(input);
   await prisma.producto.create({ data });
   revalidatePath("/admin/productos");
@@ -26,7 +26,7 @@ export async function crearProducto(input: unknown) {
 }
 
 export async function editarProducto(id: string, input: unknown) {
-  await requireRole(["admin"]);
+  await requireRole(ROUTE_ROLES["/admin"]);
   const data = productoSchema.parse(input);
   await prisma.producto.update({ where: { id }, data });
   revalidatePath("/admin/productos");
@@ -34,7 +34,7 @@ export async function editarProducto(id: string, input: unknown) {
 }
 
 export async function toggleActivoProducto(id: string, activo: boolean) {
-  await requireRole(["admin"]);
+  await requireRole(ROUTE_ROLES["/admin"]);
   await prisma.producto.update({ where: { id }, data: { activo } });
   revalidatePath("/admin/productos");
   await publishStockAlerts();

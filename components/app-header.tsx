@@ -1,15 +1,15 @@
 import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, ROUTE_ROLES } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { HeaderNav } from "@/components/header-nav";
 
 const NAV_ITEMS = [
-  { href: "/admin/productos", label: "Admin", roles: ["admin"] },
-  { href: "/pos", label: "Mostrador", roles: ["admin", "cajero", "mostrador"] },
-  { href: "/caja", label: "Caja", roles: ["admin", "cajero"] },
-  { href: "/comandas", label: "Comandas", roles: ["admin", "mostrador"] },
-  { href: "/cocina", label: "Cocina", roles: ["admin", "cocina"] },
+  { href: "/admin/productos", label: "Admin", roles: ROUTE_ROLES["/admin"] },
+  { href: "/pos", label: "Mostrador", roles: ROUTE_ROLES["/pos"] },
+  { href: "/caja", label: "Caja", roles: ROUTE_ROLES["/caja"] },
+  { href: "/mesas", label: "Mesas", roles: ROUTE_ROLES["/mesas"] },
+  { href: "/cocina", label: "Cocina", roles: ROUTE_ROLES["/cocina"] },
 ];
 
 export async function AppHeader() {

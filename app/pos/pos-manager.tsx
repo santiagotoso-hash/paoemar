@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { METODOS_PAGO } from "@/lib/metodos-pago";
 import { confirmarVentaMostrador } from "./actions";
 
 type Producto = {
@@ -29,12 +30,6 @@ type Producto = {
 
 type Categoria = { id: string; nombre: string; icono: string | null };
 
-const METODOS_PAGO = [
-  { value: "EFECTIVO", label: "Efectivo" },
-  { value: "TARJETA_CREDITO", label: "Tarjeta de crédito" },
-  { value: "TARJETA_DEBITO", label: "Tarjeta de débito" },
-  { value: "TRANSFERENCIA", label: "Transferencia" },
-] as const;
 
 export function PosManager({
   productos,
@@ -87,12 +82,12 @@ export function PosManager({
         metodoPago,
         nombreCliente: nombreCliente || undefined,
       });
-      toast.success(`Venta ${result.codigo} confirmada — $${Number(result.total).toFixed(2)}`);
+      toast.success(`Venda ${result.codigo} confirmada — R$${Number(result.total).toFixed(2)}`);
       setCart({});
       setNombreCliente("");
       router.refresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al confirmar la venta");
+      toast.error(err instanceof Error ? err.message : "Erro ao confirmar a venda");
     } finally {
       setLoading(false);
     }
@@ -101,11 +96,15 @@ export function PosManager({
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
       <div>
-        <h1 className="mb-4 text-xl font-semibold">Venta de mostrador</h1>
+        <h1 className="mb-4 text-xl font-semibold">Venda no balcão</h1>
         <Tabs defaultValue={categorias[0]?.id}>
-          <TabsList>
+          <TabsList className="grid w-full grid-cols-2 gap-2 bg-transparent p-0 group-data-[orientation=horizontal]/tabs:h-auto sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {categorias.map((cat) => (
-              <TabsTrigger key={cat.id} value={cat.id}>
+              <TabsTrigger
+                key={cat.id}
+                value={cat.id}
+                className="flex h-auto min-h-12 w-full min-w-0 items-center justify-center gap-2 rounded-md border bg-card px-2 py-2 text-center leading-tight whitespace-normal break-words text-card-foreground shadow-sm data-[active]:bg-primary data-[active]:text-primary-foreground data-[active]:shadow dark:data-[active]:bg-primary dark:data-[active]:text-primary-foreground"
+              >
                 {cat.icono} {cat.nombre}
               </TabsTrigger>
             ))}
@@ -136,10 +135,10 @@ export function PosManager({
       </div>
 
       <div className="flex h-fit flex-col gap-4 rounded-lg border p-4">
-        <h2 className="font-semibold">Carrito</h2>
+        <h2 className="font-semibold">Carrinho</h2>
 
         {cartItems.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Tocá un producto para agregarlo.</p>
+          <p className="text-sm text-muted-foreground">Toque em um produto para adicioná-lo.</p>
         ) : (
           <ul className="flex flex-col gap-3">
             {cartItems.map((item) => (
@@ -167,13 +166,13 @@ export function PosManager({
             id="nombreCliente"
             value={nombreCliente}
             onChange={(e) => setNombreCliente(e.target.value)}
-            placeholder="Mostrador"
+            placeholder="Balcão"
           />
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <Label>Método de pago</Label>
-          <Select value={metodoPago} onValueChange={(v) => setMetodoPago(v as typeof metodoPago)}>
+          <Label>Forma de pagamento</Label>
+          <Select value={metodoPago} onValueChange={(v) => setMetodoPago(v as typeof metodoPago)} items={METODOS_PAGO}>
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
@@ -193,7 +192,7 @@ export function PosManager({
         </div>
 
         <Button disabled={cartItems.length === 0 || loading} onClick={handleConfirmar}>
-          {loading ? "Confirmando..." : "Confirmar venta"}
+          {loading ? "Confirmando..." : "Confirmar venda"}
         </Button>
       </div>
     </div>

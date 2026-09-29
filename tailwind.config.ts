@@ -17,8 +17,8 @@ const config: Config = {
     },
     extend: {
       fontFamily: {
-        sans: ["var(--font-geist-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
-        heading: ["var(--font-playfair)", "Georgia", "serif"],
+        sans: ["var(--font-body)", "ui-sans-serif", "system-ui", "sans-serif"],
+        heading: ["var(--font-heading)", "Georgia", "serif"],
       },
       colors: {
         background: "var(--background)",

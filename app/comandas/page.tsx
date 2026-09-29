@@ -5,7 +5,8 @@ import { NuevaComandaDialog } from "./nueva-comanda-dialog";
 
 export default async function ComandasPage() {
   const comandas = await prisma.comanda.findMany({
-    where: { estado: "ABIERTA" },
+    // Las mesas del salón (con atendente) se atienden en /mesas.
+    where: { estado: "ABIERTA", atendenteId: null },
     include: { items: true },
     orderBy: { abiertaEn: "asc" },
   });

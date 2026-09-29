@@ -75,7 +75,11 @@ function AgregarItemForm({ comandaId, productos }: { comandaId: string; producto
     <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row sm:items-end">
       <div className="flex flex-1 flex-col gap-1.5">
         <Label>Producto</Label>
-        <Select value={productoId} onValueChange={(v) => setProductoId(v as string)}>
+        <Select
+          value={productoId}
+          onValueChange={(v) => setProductoId(v as string)}
+          items={productos.map((p) => ({ value: p.id, label: `${p.nombre} — $${Number(p.precio).toFixed(2)}` }))}
+        >
           <SelectTrigger className="w-full">
             <SelectValue />
           </SelectTrigger>
@@ -143,7 +147,7 @@ function CerrarComandaDialog({ comandaId, total }: { comandaId: string; total: n
           <p className="text-lg font-semibold">Total: ${total.toFixed(2)}</p>
           <div className="flex flex-col gap-1.5">
             <Label>Método de pago</Label>
-            <Select value={metodoPago} onValueChange={(v) => setMetodoPago(v as typeof metodoPago)}>
+            <Select value={metodoPago} onValueChange={(v) => setMetodoPago(v as typeof metodoPago)} items={METODOS_PAGO}>
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>

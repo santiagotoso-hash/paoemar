@@ -9,43 +9,43 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, ROUTE_ROLES, type Role } from "@/lib/auth";
 
-const SECCIONES: { href: string; label: string; descripcion: string; icon: LucideIcon; roles: string[] }[] = [
+const SECCIONES: { href: string; label: string; descripcion: string; icon: LucideIcon; roles: Role[] }[] = [
   {
     href: "/admin/productos",
     label: "Admin",
-    descripcion: "Catálogo, categorías, reportes y alertas de stock",
+    descripcion: "Catálogo, categorias, relatórios e alertas de estoque",
     icon: Settings2Icon,
-    roles: ["admin"],
+    roles: ROUTE_ROLES["/admin"],
   },
   {
     href: "/pos",
-    label: "Venta de mostrador",
-    descripcion: "Armá el carrito y cobrá al instante",
+    label: "Venda no balcão",
+    descripcion: "Monte o carrinho e cobre na hora",
     icon: ShoppingBagIcon,
-    roles: ["admin", "cajero", "mostrador"],
+    roles: ROUTE_ROLES["/pos"],
   },
   {
     href: "/caja",
-    label: "Caja",
-    descripcion: "Apertura, cierre y movimientos de efectivo",
+    label: "Caixa",
+    descripcion: "Abertura, fechamento e movimentações de dinheiro",
     icon: WalletIcon,
-    roles: ["admin", "cajero"],
+    roles: ROUTE_ROLES["/caja"],
   },
   {
-    href: "/comandas",
-    label: "Comandas",
-    descripcion: "Mesas abiertas y cuentas por cerrar",
+    href: "/mesas",
+    label: "Mesas",
+    descripcion: "Atendimento no salão: abrir mesa, lançar rodadas e fechar a conta",
     icon: ClipboardListIcon,
-    roles: ["admin", "mostrador"],
+    roles: ROUTE_ROLES["/mesas"],
   },
   {
     href: "/cocina",
-    label: "Cocina",
-    descripcion: "Pedidos en vivo, de recibido a entregado",
+    label: "Cozinha",
+    descripcion: "Pedidos ao vivo, de recebido a entregue",
     icon: ChefHatIcon,
-    roles: ["admin", "cocina"],
+    roles: ROUTE_ROLES["/cocina"],
   },
 ];
 
@@ -56,8 +56,8 @@ export default async function Home() {
     return (
       <div className="flex min-h-[calc(100vh-3.5rem)] flex-col items-center justify-center gap-6 text-center">
         <h1 className="font-heading text-4xl font-semibold">Pão e Mar</h1>
-        <p className="text-muted-foreground">Panadería boutique — punto de venta</p>
-        <Button render={<Link href="/sign-in">Iniciar sesión</Link>} />
+        <p className="text-muted-foreground">Padaria boutique — ponto de venda</p>
+        <Button render={<Link href="/sign-in">Entrar</Link>} />
       </div>
     );
   }
@@ -67,14 +67,14 @@ export default async function Home() {
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-8 p-8">
       <div>
-        <h1 className="font-heading text-3xl font-semibold">Bienvenido</h1>
-        <p className="text-muted-foreground">Elegí una sección para empezar.</p>
+        <h1 className="font-heading text-3xl font-semibold">Bem-vindo</h1>
+        <p className="text-muted-foreground">Escolha uma seção para começar.</p>
       </div>
 
-      {!role && (
+      {disponibles.length === 0 && (
         <p className="text-muted-foreground">
-          Tu usuario todavía no tiene un rol asignado. Pedile a un administrador
-          que te lo asigne desde el dashboard de Clerk.
+          Seu usuário ainda não tem um cargo atribuído. Peça a um administrador
+          para atribuí-lo pelo dashboard do Clerk.
         </p>
       )}
 

@@ -1,6 +1,6 @@
 import { currentUser, clerkClient } from "@clerk/nextjs/server";
 
-export const ROLES = ["admin", "cajero", "cocina", "mostrador"] as const;
+export const ROLES = ["admin", "superadmin", "user", "cajero", "cocina", "mostrador"] as const;
 export type Role = (typeof ROLES)[number];
 
 /**
@@ -8,11 +8,12 @@ export type Role = (typeof ROLES)[number];
  * (redirect antes de renderizar) como cualquier chequeo server-side.
  */
 export const ROUTE_ROLES: Record<string, Role[]> = {
-  "/admin": ["admin"],
-  "/pos": ["admin", "cajero", "mostrador"],
-  "/caja": ["admin", "cajero"],
-  "/comandas": ["admin", "mostrador"],
-  "/cocina": ["admin", "cocina"],
+  "/admin": ["admin", "superadmin"],
+  "/pos": ["admin", "superadmin", "cajero", "mostrador"],
+  "/caja": ["admin", "superadmin", "cajero"],
+  "/comandas": ["admin", "superadmin", "mostrador"],
+  "/mesas": ["admin", "superadmin", "mostrador"],
+  "/cocina": ["admin", "superadmin", "cocina"],
 };
 
 const AUTO_ADMIN_EMAILS = (process.env.ADMIN_AUTO_EMAILS ?? "")
@@ -25,6 +26,8 @@ const AUTO_ADMIN_EMAILS = (process.env.ADMIN_AUTO_EMAILS ?? "")
  * le asigna "admin" en el momento (pensado para demos: el cliente se
  * registra y ya entra con acceso completo, sin que un admin tenga que
  * asignarle el rol a mano desde el dashboard de Clerk).
+ * Sin rol y fuera de la lista queda en null (no se graba nada), así un email
+ * agregado después a ADMIN_AUTO_EMAILS igual sube a admin.
  */
 export async function resolveRole(
   userId: string,

@@ -1,4 +1,4 @@
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, ROUTE_ROLES } from "@/lib/auth";
 import { createRedisSubscriber } from "@/lib/redis";
 import { CHANNELS, getStockBajo } from "@/lib/realtime";
 
@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const { userId, role } = await getCurrentUser();
-  if (!userId || role !== "admin") {
+  if (!userId || !role || !ROUTE_ROLES["/admin"].includes(role)) {
     return new Response("Unauthorized", { status: 401 });
   }
 

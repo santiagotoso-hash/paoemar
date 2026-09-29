@@ -7,29 +7,29 @@ export function WaveBackground() {
         preserveAspectRatio="none"
       >
         <defs>
-          <linearGradient id="wave-gold" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#E0A94C" />
-            <stop offset="100%" stopColor="#C9962E" />
+          <linearGradient id="wave-terracotta-light" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#D98A4E" />
+            <stop offset="100%" stopColor="#A94E1B" />
           </linearGradient>
           <linearGradient id="wave-terracotta" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#C1622C" />
-            <stop offset="100%" stopColor="#E0A94C" />
+            <stop offset="0%" stopColor="#A94E1B" />
+            <stop offset="100%" stopColor="#E6C9A8" />
           </linearGradient>
         </defs>
         <path
           d="M0,220 C220,160 380,300 620,260 C860,220 1020,120 1260,180 C1350,202 1400,214 1440,222 L1440,500 L0,500 Z"
-          fill="url(#wave-gold)"
-          opacity="0.16"
+          fill="url(#wave-terracotta-light)"
+          opacity="0.1"
         />
         <path
           d="M0,300 C260,340 460,220 700,260 C940,300 1140,380 1440,300 L1440,500 L0,500 Z"
           fill="url(#wave-terracotta)"
-          opacity="0.13"
+          opacity="0.08"
         />
         <path
           d="M0,360 C300,320 560,400 820,360 C1080,320 1220,380 1440,350 L1440,500 L0,500 Z"
-          fill="#E0A94C"
-          opacity="0.1"
+          fill="#D98A4E"
+          opacity="0.07"
         />
       </svg>
     </div>

@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { requireRole } from "@/lib/auth";
+import { requireRole, ROUTE_ROLES } from "@/lib/auth";
 import { crearVenta } from "@/lib/ventas";
 
 const itemSchema = z.object({
@@ -17,7 +17,7 @@ const ventaSchema = z.object({
 });
 
 export async function confirmarVentaMostrador(input: unknown) {
-  const { userId } = await requireRole(["admin", "cajero", "mostrador"]);
+  const { userId } = await requireRole(ROUTE_ROLES["/pos"]);
   const data = ventaSchema.parse(input);
 
   const venta = await crearVenta({
