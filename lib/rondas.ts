@@ -55,3 +55,20 @@ export async function numeroRonda(ronda: { id: string; comandaId: string; creada
   });
   return anteriores + 1;
 }
+
+/** Igual a numeroRonda, pero para várias rodadas com uma consulta só (tela da cozinha). */
+export async function numerosRondas(rondas: { id: string; comandaId: string }[]) {
+  const todas = await prisma.ronda.findMany({
+    where: { comandaId: { in: Array.from(new Set(rondas.map((r) => r.comandaId))) } },
+    select: { id: true, comandaId: true },
+    orderBy: { creadaEn: "asc" },
+  });
+  const porComanda = new Map<string, number>();
+  const numeros = new Map<string, number>();
+  for (const r of todas) {
+    const n = (porComanda.get(r.comandaId) ?? 0) + 1;
+    porComanda.set(r.comandaId, n);
+    numeros.set(r.id, n);
+  }
+  return numeros;
+}

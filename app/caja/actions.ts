@@ -3,10 +3,10 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth";
+import { requireRole, ROUTE_ROLES } from "@/lib/auth";
 
 export async function abrirCaja(input: unknown) {
-  const { userId } = await requireRole(["admin", "cajero"]);
+  const { userId } = await requireRole(ROUTE_ROLES["/caja"]);
   const data = z.object({ fondoInicial: z.coerce.number().min(0) }).parse(input);
 
   const existing = await prisma.cajaSesion.findFirst({ where: { operadorId: userId, abierta: true } });
@@ -23,7 +23,7 @@ const movimientoSchema = z.object({
 });
 
 export async function registrarMovimiento(input: unknown) {
-  const { userId } = await requireRole(["admin", "cajero"]);
+  const { userId } = await requireRole(ROUTE_ROLES["/caja"]);
   const data = movimientoSchema.parse(input);
 
   const sesion = await prisma.cajaSesion.findFirst({ where: { operadorId: userId, abierta: true } });
@@ -41,7 +41,7 @@ export async function registrarMovimiento(input: unknown) {
 }
 
 export async function cerrarCaja() {
-  const { userId } = await requireRole(["admin", "cajero"]);
+  const { userId } = await requireRole(ROUTE_ROLES["/caja"]);
   const sesion = await prisma.cajaSesion.findFirst({ where: { operadorId: userId, abierta: true } });
   if (!sesion) throw new Error("No tenés una caja abierta");
 

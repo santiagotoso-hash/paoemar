@@ -71,7 +71,8 @@ model Comanda {
   cerradaEn     DateTime?
   tipo          TipoMesa      @default(NOMBRE)
   personas      Int?
-  servicio      Boolean       @default(true)
+  /// Taxa de serviço. As mesas abrem com true; as comandas da tela antiga ficam sem.
+  servicio      Boolean       @default(false)
   atendenteId   String?
   atendente     Atendente?    @relation(fields: [atendenteId], references: [id])
   items         ComandaItem[]
@@ -95,6 +96,8 @@ model Ronda {
   id          String        @id @default(cuid())
   comandaId   String
   atendenteId String
+  /// Chave de envio gerada no aparelho: evita rodada duplicada quando o envio é repetido.
+  clave       String?       @unique
   creadaEn    DateTime      @default(now())
   estado      EstadoVenta   @default(RECIBIDO)
   comanda     Comanda       @relation(fields: [comandaId], references: [id])

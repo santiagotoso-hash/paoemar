@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, ROUTE_ROLES } from "@/lib/auth";
 import { StockAlertsBanner } from "@/components/stock-alerts-banner";
 import { getStockBajo } from "@/lib/realtime";
 
@@ -13,7 +13,7 @@ const TABS = [
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const { role } = await getCurrentUser();
-  if (role !== "admin") redirect("/sin-acceso");
+  if (!role || !ROUTE_ROLES["/admin"].includes(role)) redirect("/sin-acceso");
 
   const alertasIniciales = await getStockBajo();
 

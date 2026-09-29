@@ -67,6 +67,7 @@ export function definirObservacao(itens: ItemPendente[], chave: string, observac
 }
 
 const PREFIXO = "mesa-pendentes:";
+const PREFIXO_ENVIO = "mesa-envio:";
 const EVENTO = "mesa-pendentes";
 const VAZIO: ItemPendente[] = [];
 
@@ -81,13 +82,37 @@ function ler(comandaId: string): ItemPendente[] {
 
 export function salvarPendentes(comandaId: string, itens: ItemPendente[]) {
   try {
-    if (itens.length === 0) localStorage.removeItem(PREFIXO + comandaId);
-    else localStorage.setItem(PREFIXO + comandaId, JSON.stringify(itens));
+    if (itens.length === 0) {
+      localStorage.removeItem(PREFIXO + comandaId);
+      localStorage.removeItem(PREFIXO_ENVIO + comandaId);
+    } else localStorage.setItem(PREFIXO + comandaId, JSON.stringify(itens));
   } catch {
     // armazenamento indisponível (aba anônima, cota): segue só em memória nesta tela
   }
   cache.delete(comandaId);
   window.dispatchEvent(new Event(EVENTO));
+}
+
+function gerarClave() {
+  // randomUUID só existe em contexto seguro (https/localhost); na rede local por http cai no fallback.
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
+}
+
+/**
+ * Chave do envio "Lançar na mesa": é a mesma enquanto o conteúdo não mudar. Se a resposta
+ * se perder (rede do salão) e o atendente apertar de novo, o servidor reconhece e não duplica.
+ */
+export function claveDeEnvio(comandaId: string, conteudo: string) {
+  try {
+    const salvo = JSON.parse(localStorage.getItem(PREFIXO_ENVIO + comandaId) ?? "null");
+    if (salvo?.conteudo === conteudo && typeof salvo.clave === "string") return salvo.clave as string;
+  } catch {}
+  const clave = gerarClave();
+  try {
+    localStorage.setItem(PREFIXO_ENVIO + comandaId, JSON.stringify({ conteudo, clave }));
+  } catch {}
+  return clave;
 }
 
 // useSyncExternalStore exige o mesmo objeto enquanto nada mudou.

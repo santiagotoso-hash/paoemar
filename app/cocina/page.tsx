@@ -1,6 +1,6 @@
 import type { EstadoVenta } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { numeroRonda, rondaCocinaInclude, rondaParaEvento } from "@/lib/rondas";
+import { numerosRondas, rondaCocinaInclude, rondaParaEvento } from "@/lib/rondas";
 import { CocinaBoard } from "./cocina-board";
 
 export default async function CocinaPage() {
@@ -34,9 +34,8 @@ export default async function CocinaPage() {
     })),
   }));
 
-  const rondasIniciales = await Promise.all(
-    rondas.map(async (r) => rondaParaEvento(r, await numeroRonda(r)))
-  );
+  const numeros = await numerosRondas(rondas);
+  const rondasIniciales = rondas.map((r) => rondaParaEvento(r, numeros.get(r.id) ?? 1));
 
   const todos = [...ventasIniciales, ...rondasIniciales].sort((a, b) =>
     a.createdAt.localeCompare(b.createdAt)

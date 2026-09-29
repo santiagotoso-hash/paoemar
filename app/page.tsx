@@ -9,43 +9,43 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, ROUTE_ROLES, type Role } from "@/lib/auth";
 
-const SECCIONES: { href: string; label: string; descripcion: string; icon: LucideIcon; roles: string[] }[] = [
+const SECCIONES: { href: string; label: string; descripcion: string; icon: LucideIcon; roles: Role[] }[] = [
   {
     href: "/admin/productos",
     label: "Admin",
     descripcion: "Catálogo, categorias, relatórios e alertas de estoque",
     icon: Settings2Icon,
-    roles: ["admin"],
+    roles: ROUTE_ROLES["/admin"],
   },
   {
     href: "/pos",
     label: "Venda no balcão",
     descripcion: "Monte o carrinho e cobre na hora",
     icon: ShoppingBagIcon,
-    roles: ["admin", "cajero", "mostrador"],
+    roles: ROUTE_ROLES["/pos"],
   },
   {
     href: "/caja",
     label: "Caixa",
     descripcion: "Abertura, fechamento e movimentações de dinheiro",
     icon: WalletIcon,
-    roles: ["admin", "cajero"],
+    roles: ROUTE_ROLES["/caja"],
   },
   {
     href: "/mesas",
     label: "Mesas",
     descripcion: "Atendimento no salão: abrir mesa, lançar rodadas e fechar a conta",
     icon: ClipboardListIcon,
-    roles: ["admin", "mostrador"],
+    roles: ROUTE_ROLES["/mesas"],
   },
   {
     href: "/cocina",
     label: "Cozinha",
     descripcion: "Pedidos ao vivo, de recebido a entregue",
     icon: ChefHatIcon,
-    roles: ["admin", "cocina"],
+    roles: ROUTE_ROLES["/cocina"],
   },
 ];
 
@@ -71,7 +71,7 @@ export default async function Home() {
         <p className="text-muted-foreground">Escolha uma seção para começar.</p>
       </div>
 
-      {!role && (
+      {disponibles.length === 0 && (
         <p className="text-muted-foreground">
           Seu usuário ainda não tem um cargo atribuído. Peça a um administrador
           para atribuí-lo pelo dashboard do Clerk.

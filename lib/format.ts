@@ -25,3 +25,8 @@ export function tempoDesde(iso: string, agora: number = Date.now()) {
   const h = Math.floor(min / 60);
   return `há ${h} h ${String(min % 60).padStart(2, "0")}`;
 }
+
+/** Redondea a centavos antes de guardar o comparar montos (evita 14.000000000000002). */
+export function redondear2(valor: number) {
+  return Math.round((valor + Number.EPSILON) * 100) / 100;
+}

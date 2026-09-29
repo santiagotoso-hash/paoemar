@@ -1,8 +1,16 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, type Adicional } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 async function main() {
+  // Apaga vendas, comandas e produtos: só roda com confirmação explícita, para não
+  // zerar a base de produção por engano (a DATABASE_URL do .env pode ser a de prod).
+  if (process.env.CONFIRMAR_RESET !== "sim") {
+    throw new Error(
+      "Este seed APAGA vendas, comandas e produtos. Para rodar: CONFIRMAR_RESET=sim npx tsx prisma/seed-completo.ts"
+    );
+  }
+
   console.log("Iniciando o Seed do Cardápio Completo...");
 
   // =========================================================================
@@ -12,6 +20,7 @@ async function main() {
   await prisma.comandaItemAdicional.deleteMany();
   await prisma.ventaItem.deleteMany();
   await prisma.comandaItem.deleteMany();
+  await prisma.ronda.deleteMany();
   await prisma.venta.deleteMany();
   await prisma.comanda.deleteMany();
   await prisma.producto.deleteMany();
@@ -44,7 +53,7 @@ async function main() {
     { nombre: "Coberturas", precio: 2.0 },
   ];
 
-  const adicionaisCriados = [];
+  const adicionaisCriados: Adicional[] = [];
   for (const ad of adicionaisData) {
     const criado = await prisma.adicional.create({ data: ad });
     adicionaisCriados.push(criado);

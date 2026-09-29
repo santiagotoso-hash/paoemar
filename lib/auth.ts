@@ -22,9 +22,12 @@ const AUTO_ADMIN_EMAILS = (process.env.ADMIN_AUTO_EMAILS ?? "")
   .filter(Boolean);
 
 /**
- * Si el usuario todavía no tiene rol:
- * - Se le asigna "admin" si su email está en ADMIN_AUTO_EMAILS.
- * - De lo contrario, se le asigna "user" por defecto.
+ * Si el usuario todavía no tiene rol y su email está en ADMIN_AUTO_EMAILS,
+ * le asigna "admin" en el momento (pensado para demos: el cliente se
+ * registra y ya entra con acceso completo, sin que un admin tenga que
+ * asignarle el rol a mano desde el dashboard de Clerk).
+ * Sin rol y fuera de la lista queda en null (no se graba nada), así un email
+ * agregado después a ADMIN_AUTO_EMAILS igual sube a admin.
  */
 export async function resolveRole(
   userId: string,
@@ -32,16 +35,12 @@ export async function resolveRole(
   currentRole: Role | null
 ): Promise<Role | null> {
   if (currentRole) return currentRole;
-  
-  let newRole: Role = "user";
-  
-  if (email && AUTO_ADMIN_EMAILS.length > 0 && AUTO_ADMIN_EMAILS.includes(email.toLowerCase())) {
-    newRole = "admin";
-  }
+  if (!email || AUTO_ADMIN_EMAILS.length === 0) return null;
+  if (!AUTO_ADMIN_EMAILS.includes(email.toLowerCase())) return null;
 
   const client = await clerkClient();
-  await client.users.updateUserMetadata(userId, { publicMetadata: { role: newRole } });
-  return newRole;
+  await client.users.updateUserMetadata(userId, { publicMetadata: { role: "admin" } });
+  return "admin";
 }
 
 export async function getCurrentUser(): Promise<{ userId: string; role: Role | null }> {

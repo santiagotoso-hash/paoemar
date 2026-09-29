@@ -1,5 +1,6 @@
+import { randomInt } from "crypto";
 import { PrismaClient } from "@prisma/client";
-import { hashPin } from "../lib/atendente";
+import { hashPin } from "../lib/pin";
 
 /**
  * Dados de exemplo do atendimento nas mesas. Idempotente: não apaga nada,
@@ -7,11 +8,8 @@ import { hashPin } from "../lib/atendente";
  */
 const prisma = new PrismaClient();
 
-const ATENDENTES = [
-  { nombre: "Ana", pin: "1234" },
-  { nombre: "Bruno", pin: "2345" },
-  { nombre: "Carla", pin: "3456" },
-];
+/** Criados com PIN aleatório (não fica no repo nem no log): o admin define o PIN em Admin → Atendentes. */
+const ATENDENTES = ["Ana", "Bruno", "Carla"];
 
 /** Grupos de escolha única para os produtos do cardápio que têm "ou" no nome. */
 const GRUPOS: { producto: string; grupo: string; opciones: { nombre: string; precio?: number }[] }[] = [
@@ -38,11 +36,12 @@ const GRUPOS: { producto: string; grupo: string; opciones: { nombre: string; pre
 ];
 
 async function main() {
-  for (const a of ATENDENTES) {
-    const existe = await prisma.atendente.findFirst({ where: { nombre: a.nombre } });
+  for (const nombre of ATENDENTES) {
+    const existe = await prisma.atendente.findFirst({ where: { nombre } });
     if (existe) continue;
-    await prisma.atendente.create({ data: { nombre: a.nombre, pinHash: hashPin(a.pin) } });
-    console.log(`Atendente criado: ${a.nombre} (PIN ${a.pin})`);
+    const pin = String(randomInt(0, 10_000)).padStart(4, "0");
+    await prisma.atendente.create({ data: { nombre, pinHash: hashPin(pin) } });
+    console.log(`Atendente criado: ${nombre} (defina o PIN em Admin → Atendentes)`);
   }
 
   for (const g of GRUPOS) {

@@ -3,11 +3,16 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth";
-import { crearVenta } from "@/lib/ventas";
+import { requireRole, ROUTE_ROLES } from "@/lib/auth";
+import { TAXA_SERVICO, totalItem } from "@/lib/mesas";
+import { redondear2 } from "@/lib/format";
+import { bloquearComandaAbierta, crearVentaTx, publicarVenta } from "@/lib/ventas";
+
+/** Las comandas abiertas desde /mesas (tienen atendente) se atienden y cierran solo allá. */
+const ES_DE_MESA = "Esta comanda es de una mesa del salón: se atiende desde Mesas.";
 
 export async function crearComanda(input: unknown) {
-  await requireRole(["admin", "mostrador"]);
+  await requireRole(ROUTE_ROLES["/comandas"]);
   const data = z
     .object({
       codigo: z.string().min(1, "Requerido"),
@@ -21,7 +26,7 @@ export async function crearComanda(input: unknown) {
 }
 
 export async function agregarItemComanda(comandaId: string, input: unknown) {
-  await requireRole(["admin", "mostrador"]);
+  await requireRole(ROUTE_ROLES["/comandas"]);
   const data = z
     .object({
       productoId: z.string().min(1),
@@ -32,25 +37,33 @@ export async function agregarItemComanda(comandaId: string, input: unknown) {
 
   const comanda = await prisma.comanda.findUnique({ where: { id: comandaId } });
   if (!comanda || comanda.estado === "CERRADA") throw new Error("La comanda no está abierta");
+  if (comanda.atendenteId) throw new Error(ES_DE_MESA);
 
   const producto = await prisma.producto.findUnique({ where: { id: data.productoId } });
   if (!producto) throw new Error("Producto no encontrado");
 
-  await prisma.comandaItem.create({
-    data: {
-      comandaId,
-      productoId: producto.id,
-      cantidad: data.cantidad,
-      precioUnit: producto.precio,
-      notas: data.notas,
-    },
+  await prisma.$transaction(async (tx) => {
+    if (!(await bloquearComandaAbierta(tx, comandaId))) throw new Error("La comanda no está abierta");
+    await tx.comandaItem.create({
+      data: {
+        comandaId,
+        productoId: producto.id,
+        cantidad: data.cantidad,
+        precioUnit: producto.precio,
+        notas: data.notas,
+      },
+    });
   });
   revalidatePath(`/comandas/${comandaId}`);
 }
 
 export async function eliminarItemComanda(comandaId: string, itemId: string) {
-  await requireRole(["admin", "mostrador"]);
-  await prisma.comandaItem.delete({ where: { id: itemId } });
+  await requireRole(ROUTE_ROLES["/comandas"]);
+  // Solo ítems de esta comanda, abierta y de la pantalla vieja (no se toca lo ya cobrado).
+  const { count } = await prisma.comandaItem.deleteMany({
+    where: { id: itemId, comandaId, comanda: { estado: "ABIERTA", atendenteId: null } },
+  });
+  if (count === 0) throw new Error("No se pudo quitar el ítem de esta comanda");
   revalidatePath(`/comandas/${comandaId}`);
 }
 
@@ -59,35 +72,47 @@ const cerrarComandaSchema = z.object({
 });
 
 export async function cerrarComanda(comandaId: string, input: unknown) {
-  const { userId } = await requireRole(["admin", "mostrador"]);
+  const { userId } = await requireRole(ROUTE_ROLES["/comandas"]);
   const data = cerrarComandaSchema.parse(input);
 
-  const comanda = await prisma.comanda.findUnique({
-    where: { id: comandaId },
-    include: { items: true },
-  });
-  if (!comanda) throw new Error("Comanda no encontrada");
-  if (comanda.estado === "CERRADA") throw new Error("La comanda ya está cerrada");
-  if (comanda.items.length === 0) throw new Error("La comanda no tiene ítems");
+  const venta = await prisma.$transaction(
+    async (tx) => {
+      if (!(await bloquearComandaAbierta(tx, comandaId))) throw new Error("La comanda no está abierta");
+      const comanda = await tx.comanda.findUniqueOrThrow({
+        where: { id: comandaId },
+        include: { items: { include: { adicionais: true } } },
+      });
+      if (comanda.atendenteId) throw new Error(ES_DE_MESA);
+      if (comanda.items.length === 0) throw new Error("La comanda no tiene ítems");
 
-  await crearVenta({
-    items: comanda.items.map((i) => ({
-      productoId: i.productoId,
-      cantidad: Number(i.cantidad),
-      notas: i.notas ?? undefined,
-      precioUnit: Number(i.precioUnit),
-    })),
-    origen: "COMANDA",
-    operadorId: userId,
-    metodoPago: data.metodoPago,
-    nombreCliente: comanda.nombreCliente ?? undefined,
-    comandaId: comanda.id,
-  });
+      const consumo = redondear2(comanda.items.reduce((acc, i) => acc + totalItem(i), 0));
+      const venta = await crearVentaTx(tx, {
+        items: comanda.items.map((i) => ({
+          productoId: i.productoId,
+          cantidad: Number(i.cantidad),
+          notas: i.notas ?? undefined,
+          precioUnit: Number(i.precioUnit),
+          adicionais: i.adicionais.map((a) => ({ nombre: a.nombre, precio: Number(a.precio) })),
+        })),
+        origen: "COMANDA",
+        operadorId: userId,
+        metodoPago: data.metodoPago,
+        nombreCliente: comanda.nombreCliente ?? undefined,
+        comandaId: comanda.id,
+        // Misma regla que /mesas: si la comanda tiene servicio, se cobra igual en las dos pantallas.
+        servicio: comanda.servicio ? redondear2(consumo * TAXA_SERVICO) : 0,
+      });
 
-  await prisma.comanda.update({
-    where: { id: comanda.id },
-    data: { estado: "CERRADA", cerradaEn: new Date() },
-  });
+      await tx.comanda.update({
+        where: { id: comanda.id },
+        data: { estado: "CERRADA", cerradaEn: new Date() },
+      });
+      return venta;
+    },
+    { timeout: 15_000 }
+  );
+
+  await publicarVenta(venta);
 
   revalidatePath("/comandas");
   revalidatePath(`/comandas/${comandaId}`);

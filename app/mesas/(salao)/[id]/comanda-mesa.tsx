@@ -17,11 +17,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { formatBRL, formatHora, tempoDesde } from "@/lib/format";
+import { formatBRL, formatHora, redondear2, tempoDesde } from "@/lib/format";
 import { nomeMesa, TAXA_SERVICO } from "@/lib/mesas";
 import { METODOS_PAGO, type MetodoPagoValue } from "@/lib/metodos-pago";
 import { Contador } from "../../contador";
-import { definirObservacao, totalPendente, usePendentes, type ItemPendente } from "../../pendentes";
+import { claveDeEnvio, definirObservacao, totalPendente, usePendentes, type ItemPendente } from "../../pendentes";
 import { ObservacaoSheet } from "../../observacao";
 import { alternarServico, fecharConta, lancarRonda } from "../../actions";
 
@@ -85,9 +85,10 @@ export function ComandaMesa({ mesa, rodadas }: { mesa: Mesa; rodadas: RodadaView
 
   const titulo = nomeMesa(mesa.tipo, mesa.codigo);
   const totalPendentes = pendentes.reduce((acc, i) => acc + totalPendente(i), 0);
-  const consumo = rodadas.reduce((acc, r) => acc + r.itens.reduce((a, i) => a + i.total, 0), 0);
-  const valorServico = servico ? Math.round(consumo * TAXA_SERVICO * 100) / 100 : 0;
-  const totalMesa = consumo + valorServico;
+  // Mesmo cálculo do servidor em fecharConta (ele confere este total antes de cobrar).
+  const consumo = redondear2(rodadas.reduce((acc, r) => acc + r.itens.reduce((a, i) => a + i.total, 0), 0));
+  const valorServico = servico ? redondear2(consumo * TAXA_SERVICO) : 0;
+  const totalMesa = redondear2(consumo + valorServico);
   const temLancados = rodadas.some((r) => r.itens.length > 0);
 
   function mudarQtd(chave: string, qtd: number) {
@@ -99,16 +100,15 @@ export function ComandaMesa({ mesa, rodadas }: { mesa: Mesa; rodadas: RodadaView
   async function handleLancar() {
     setLancando(true);
     try {
-      const res = await lancarRonda(
-        mesa.id,
-        pendentes.map((i) => ({
-          productoId: i.productoId,
-          opcionIds: i.opcion?.ids ?? [],
-          adicionalIds: i.adicionais.map((a) => a.id),
-          observacao: i.observacao,
-          qtd: i.qtd,
-        }))
-      );
+      const itens = pendentes.map((i) => ({
+        productoId: i.productoId,
+        opcionIds: i.opcion?.ids ?? [],
+        adicionalIds: i.adicionais.map((a) => a.id),
+        observacao: i.observacao,
+        qtd: i.qtd,
+      }));
+      const clave = claveDeEnvio(mesa.id, JSON.stringify(itens));
+      const res = await lancarRonda(mesa.id, { clave, itens });
       if (!res.ok) {
         toast.error(res.error);
         return;
@@ -426,7 +426,7 @@ function FecharContaDialog({
   async function handleConfirmar() {
     setLoading(true);
     try {
-      const res = await fecharConta(mesaId, { metodoPago });
+      const res = await fecharConta(mesaId, { metodoPago, totalEsperado: total });
       if (!res.ok) {
         toast.error(res.error);
         return;

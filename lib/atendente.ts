@@ -1,11 +1,16 @@
-import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
+import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+
+export { hashPin, verificarPin } from "@/lib/pin";
 
 /**
  * Sessão do atendente do salão. Fica POR CIMA da sessão Clerk do aparelho:
  * o aparelho entra com Clerk (rol "mostrador") e cada atendente se identifica com PIN.
- * O cookie guarda só o id do atendente + uma assinatura HMAC.
+ * O cookie guarda `id.emitidoEm.assinatura`. A assinatura cobre também o usuário
+ * Clerk do aparelho e o hash do PIN: trocar o PIN ou sair do Clerk invalida a sessão,
+ * e a validade é conferida aqui no servidor (não só pelo maxAge do navegador).
  */
 const COOKIE = "atendente";
 const DURACAO_SEG = 60 * 60 * 12; // um turno
@@ -20,22 +25,22 @@ function assinar(valor: string) {
   return createHmac("sha256", secret()).update(valor).digest("hex");
 }
 
-export function hashPin(pin: string) {
-  const salt = randomBytes(16).toString("hex");
-  const hash = scryptSync(pin, salt, 32).toString("hex");
-  return `${salt}:${hash}`;
+function assinaturaSessao(atendenteId: string, emitidoEm: string, clerkUserId: string, pinHash: string) {
+  return assinar([atendenteId, emitidoEm, clerkUserId, pinHash].join("."));
 }
 
-export function verificarPin(pin: string, pinHash: string) {
-  const [salt, hash] = pinHash.split(":");
-  if (!salt || !hash) return false;
-  const esperado = Buffer.from(hash, "hex");
-  const recebido = scryptSync(pin, salt, esperado.length);
-  return timingSafeEqual(esperado, recebido);
+/** Contador de tentativas de PIN no Redis (trocar o PIN no admin zera o bloqueio). */
+export function chaveTentativasPin(atendenteId: string) {
+  return `pin-tentativas:${atendenteId}`;
 }
 
-export function iniciarSessaoAtendente(atendenteId: string) {
-  cookies().set(COOKIE, `${atendenteId}.${assinar(atendenteId)}`, {
+export function iniciarSessaoAtendente(
+  atendente: { id: string; pinHash: string },
+  clerkUserId: string
+) {
+  const emitidoEm = String(Date.now());
+  const firma = assinaturaSessao(atendente.id, emitidoEm, clerkUserId, atendente.pinHash);
+  cookies().set(COOKIE, `${atendente.id}.${emitidoEm}.${firma}`, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
@@ -54,17 +59,23 @@ export async function getAtendenteActual(): Promise<AtendenteSessao | null> {
   const valor = cookies().get(COOKIE)?.value;
   if (!valor) return null;
 
-  const [id, firma] = valor.split(".");
-  if (!id || !firma) return null;
-  const esperada = Buffer.from(assinar(id));
-  const recebida = Buffer.from(firma);
-  if (esperada.length !== recebida.length || !timingSafeEqual(esperada, recebida)) return null;
+  const [id, emitidoEm, firma] = valor.split(".");
+  if (!id || !emitidoEm || !firma) return null;
+  const idade = Date.now() - Number(emitidoEm);
+  if (!Number.isFinite(idade) || idade < 0 || idade > DURACAO_SEG * 1000) return null;
+
+  const { userId } = await auth();
+  if (!userId) return null;
 
   const atendente = await prisma.atendente.findUnique({
     where: { id },
-    select: { id: true, nombre: true, activo: true },
+    select: { id: true, nombre: true, activo: true, pinHash: true },
   });
   if (!atendente?.activo) return null;
+
+  const esperada = Buffer.from(assinaturaSessao(id, emitidoEm, userId, atendente.pinHash));
+  const recebida = Buffer.from(firma);
+  if (esperada.length !== recebida.length || !timingSafeEqual(esperada, recebida)) return null;
   return { id: atendente.id, nombre: atendente.nombre };
 }
 
