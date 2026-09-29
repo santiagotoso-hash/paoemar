@@ -4,7 +4,7 @@ CREATE TYPE "TipoMesa" AS ENUM ('NUMERO', 'NOMBRE');
 -- AlterTable
 ALTER TABLE "Comanda" ADD COLUMN     "atendenteId" TEXT,
 ADD COLUMN     "personas" INTEGER,
-ADD COLUMN     "servicio" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "servicio" BOOLEAN NOT NULL DEFAULT true,
 ADD COLUMN     "tipo" "TipoMesa" NOT NULL DEFAULT 'NOMBRE';
 
 -- AlterTable
@@ -61,7 +61,6 @@ CREATE TABLE "Ronda" (
     "id" TEXT NOT NULL,
     "comandaId" TEXT NOT NULL,
     "atendenteId" TEXT NOT NULL,
-    "clave" TEXT,
     "creadaEn" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "estado" "EstadoVenta" NOT NULL DEFAULT 'RECIBIDO',
 
@@ -95,9 +94,6 @@ CREATE TABLE "_AdicionalToProducto" (
 
     CONSTRAINT "_AdicionalToProducto_AB_pkey" PRIMARY KEY ("A","B")
 );
-
--- CreateIndex
-CREATE UNIQUE INDEX "Ronda_clave_key" ON "Ronda"("clave");
 
 -- CreateIndex
 CREATE INDEX "_AdicionalToProducto_B_index" ON "_AdicionalToProducto"("B");
