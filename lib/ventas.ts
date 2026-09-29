@@ -8,6 +8,8 @@ export type VentaItemInput = {
   notas?: string;
   /** Si viene (ej. desde una comanda), se respeta ese precio congelado en vez del precio actual del producto. */
   precioUnit?: number;
+  /** Adicionales con precio congelado (se suman al total del ítem). */
+  adicionais?: { nombre: string; precio: number }[];
 };
 
 export type CrearVentaParams = {
@@ -17,6 +19,17 @@ export type CrearVentaParams = {
   metodoPago: MetodoPago;
   nombreCliente?: string;
   comandaId?: string;
+  /** Taxa de serviço, separada del subtotal. */
+  servicio?: number;
+  /** Si viene, se usa esta caja en vez de la caja abierta del operador (mesas). */
+  cajaSesionId?: string;
+  /**
+   * false = no va a cocina: la venta nace ENTREGADO y no se publica.
+   * Lo usan las mesas, cuyos ítems ya fueron a cocina por rondas.
+   */
+  enviarCocina?: boolean;
+  /** false = descuenta stock pero no bloquea si falta (mesas: el cliente ya consumió). */
+  validarStock?: boolean;
 };
 
 /**
@@ -25,6 +38,9 @@ export type CrearVentaParams = {
  */
 export async function crearVenta(params: CrearVentaParams) {
   const { items, origen, operadorId, metodoPago, nombreCliente, comandaId } = params;
+  const servicio = params.servicio ?? 0;
+  const enviarCocina = params.enviarCocina ?? true;
+  const validarStock = params.validarStock ?? true;
 
   if (items.length === 0) {
     throw new Error("El carrito está vacío");
@@ -32,7 +48,9 @@ export async function crearVenta(params: CrearVentaParams) {
 
   const venta = await prisma.$transaction(async (tx) => {
     const cajaSesion = await tx.cajaSesion.findFirst({
-      where: { operadorId, abierta: true },
+      where: params.cajaSesionId
+        ? { id: params.cajaSesionId, abierta: true }
+        : { operadorId, abierta: true },
     });
     if (!cajaSesion) {
       throw new Error("No tenés una caja abierta. Abrí una caja antes de vender.");
@@ -47,11 +65,12 @@ export async function crearVenta(params: CrearVentaParams) {
       const producto = productos.find((p) => p.id === item.productoId);
       if (!producto) throw new Error("Uno de los productos ya no existe");
       if (item.cantidad <= 0) throw new Error(`Cantidad inválida para ${producto.nombre}`);
-      if (Number(producto.stockActual) < item.cantidad) {
+      if (validarStock && Number(producto.stockActual) < item.cantidad) {
         throw new Error(`Stock insuficiente de "${producto.nombre}" (quedan ${producto.stockActual})`);
       }
       const precioUnit = item.precioUnit ?? Number(producto.precio);
-      const total = precioUnit * item.cantidad;
+      const adicionais = item.adicionais ?? [];
+      const total = (precioUnit + adicionais.reduce((acc, a) => acc + a.precio, 0)) * item.cantidad;
       subtotal += total;
       return {
         productoId: producto.id,
@@ -59,6 +78,7 @@ export async function crearVenta(params: CrearVentaParams) {
         precioUnit,
         total,
         notas: item.notas,
+        ...(adicionais.length > 0 ? { adicionais: { create: adicionais } } : {}),
       };
     });
 
@@ -71,8 +91,10 @@ export async function crearVenta(params: CrearVentaParams) {
         nombreCliente: nombreCliente || "Mostrador",
         subtotal,
         descuento: 0,
-        total: subtotal,
+        servicio,
+        total: subtotal + servicio,
         metodoPago,
+        ...(enviarCocina ? {} : { estado: "ENTREGADO" as const }),
         cajaSesionId: cajaSesion.id,
         operadorId,
         comandaId,
@@ -91,19 +113,21 @@ export async function crearVenta(params: CrearVentaParams) {
     return nuevaVenta;
   });
 
-  await publishVentaEvent({
-    id: venta.id,
-    codigo: venta.codigo,
-    nombreCliente: venta.nombreCliente,
-    origen: venta.origen,
-    estado: venta.estado,
-    createdAt: venta.createdAt.toISOString(),
-    items: venta.items.map((i) => ({
-      productoNombre: i.producto.nombre,
-      cantidad: i.cantidad.toString(),
-      notas: i.notas,
-    })),
-  });
+  if (enviarCocina) {
+    await publishVentaEvent({
+      id: venta.id,
+      codigo: venta.codigo,
+      nombreCliente: venta.nombreCliente,
+      origen: venta.origen,
+      estado: venta.estado,
+      createdAt: venta.createdAt.toISOString(),
+      items: venta.items.map((i) => ({
+        productoNombre: i.producto.nombre,
+        cantidad: i.cantidad.toString(),
+        notas: i.notas,
+      })),
+    });
+  }
   await publishStockAlerts();
 
   return venta;

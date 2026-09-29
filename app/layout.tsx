@@ -1,31 +1,30 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
-import { Playfair_Display } from "next/font/google";
+import { Figtree, Fraunces } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "@/components/ui/sonner";
 import { AppHeader } from "@/components/app-header";
 import { WaveBackground } from "@/components/wave-background";
 import "./globals.css";
 
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist-sans",
-  weight: "100 900",
+const figtree = Figtree({
+  subsets: ["latin"],
+  variable: "--font-body",
 });
 const geistMono = localFont({
   src: "./fonts/GeistMonoVF.woff",
   variable: "--font-geist-mono",
   weight: "100 900",
 });
-const playfair = Playfair_Display({
+const fraunces = Fraunces({
   subsets: ["latin"],
-  variable: "--font-playfair",
-  weight: ["600", "700"],
+  variable: "--font-heading",
+  weight: ["500", "600", "700"],
 });
 
 export const metadata: Metadata = {
   title: "Pao e Mar — PDV",
-  description: "Punto de venta para panadería boutique",
+  description: "Ponto de venda para padaria boutique",
 };
 
 export default function RootLayout({
@@ -37,21 +36,21 @@ export default function RootLayout({
     <ClerkProvider
       appearance={{
         variables: {
-          colorPrimary: "#c9962e",
-          colorBackground: "#fffdf9",
-          colorText: "#2a1b12",
-          colorTextSecondary: "#7a6a56",
-          colorInputBackground: "#fffdf9",
-          colorInputText: "#2a1b12",
-          colorNeutral: "#2a1b12",
-          borderRadius: "0.625rem",
-          fontFamily: "var(--font-geist-sans)",
+          colorPrimary: "#a94e1b",
+          colorBackground: "#fffcf7",
+          colorText: "#2a1e16",
+          colorTextSecondary: "#6e5a4b",
+          colorInputBackground: "#fffcf7",
+          colorInputText: "#2a1e16",
+          colorNeutral: "#2a1e16",
+          borderRadius: "0.875rem",
+          fontFamily: "var(--font-body)",
         },
       }}
     >
-      <html lang="es">
+      <html lang="pt-BR">
         <body
-          className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} font-sans antialiased`}
+          className={`${figtree.variable} ${geistMono.variable} ${fraunces.variable} font-sans antialiased`}
         >
           <WaveBackground />
           <AppHeader />

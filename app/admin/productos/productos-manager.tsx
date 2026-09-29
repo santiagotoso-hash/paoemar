@@ -95,7 +95,11 @@ function ProductoForm({
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1.5">
           <Label>Categoría</Label>
-          <Select value={categoriaId} onValueChange={(v) => setCategoriaId(v as string)}>
+          <Select
+            value={categoriaId}
+            onValueChange={(v) => setCategoriaId(v as string)}
+            items={categorias.map((c) => ({ value: c.id, label: c.nombre }))}
+          >
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Elegí una categoría" />
             </SelectTrigger>
@@ -110,7 +114,11 @@ function ProductoForm({
         </div>
         <div className="flex flex-col gap-1.5">
           <Label>Tipo de unidad</Label>
-          <Select value={tipoUnidad} onValueChange={(v) => setTipoUnidad(v as "UNIDAD" | "KG")}>
+          <Select
+            value={tipoUnidad}
+            onValueChange={(v) => setTipoUnidad(v as "UNIDAD" | "KG")}
+            items={{ UNIDAD: "Unidad", KG: "Kg" }}
+          >
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>

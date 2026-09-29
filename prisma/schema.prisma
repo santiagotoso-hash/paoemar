@@ -30,6 +30,36 @@ model Producto {
   categoria    Categoria     @relation(fields: [categoriaId], references: [id])
   ventaItems   VentaItem[]
   comandaItems ComandaItem[]
+  adicionais   Adicional[]
+  gruposOpcion GrupoOpcion[]
+}
+
+/// Grupo de escolha única ligado a um produto (ex.: recheio da tapioca).
+model GrupoOpcion {
+  id          String   @id @default(cuid())
+  nombre      String
+  productoId  String
+  obligatorio Boolean  @default(true)
+  orden       Int      @default(0)
+  producto    Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  opciones    Opcion[]
+}
+
+model Opcion {
+  id      String      @id @default(cuid())
+  nombre  String
+  /// Valor somado ao preço base do produto.
+  precio  Decimal     @default(0)
+  orden   Int         @default(0)
+  grupoId String
+  grupo   GrupoOpcion @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+}
+
+model Adicional {
+  id        String     @id @default(cuid())
+  nombre    String
+  precio    Decimal
+  productos Producto[]
 }
 
 model Comanda {
@@ -39,19 +69,61 @@ model Comanda {
   estado        EstadoComanda @default(ABIERTA)
   abiertaEn     DateTime      @default(now())
   cerradaEn     DateTime?
+  tipo          TipoMesa      @default(NOMBRE)
+  personas      Int?
+  servicio      Boolean       @default(true)
+  atendenteId   String?
+  atendente     Atendente?    @relation(fields: [atendenteId], references: [id])
   items         ComandaItem[]
+  rondas        Ronda[]
   venta         Venta?
 }
 
+/// Atendente do salão: entra com PIN por cima da sessão Clerk do aparelho.
+model Atendente {
+  id       String    @id @default(cuid())
+  nombre   String
+  pinHash  String
+  activo   Boolean   @default(true)
+  creadoEn DateTime  @default(now())
+  comandas Comanda[]
+  rondas   Ronda[]
+}
+
+/// Um envio de itens da mesa para a cozinha. Reaproveita os estados da cozinha.
+model Ronda {
+  id          String        @id @default(cuid())
+  comandaId   String
+  atendenteId String
+  creadaEn    DateTime      @default(now())
+  estado      EstadoVenta   @default(RECIBIDO)
+  comanda     Comanda       @relation(fields: [comandaId], references: [id])
+  atendente   Atendente     @relation(fields: [atendenteId], references: [id])
+  items       ComandaItem[]
+}
+
 model ComandaItem {
-  id         String   @id @default(cuid())
+  id         String                 @id @default(cuid())
   comandaId  String
   productoId String
   cantidad   Decimal
   precioUnit Decimal
   notas      String?
-  comanda    Comanda  @relation(fields: [comandaId], references: [id])
-  producto   Producto @relation(fields: [productoId], references: [id])
+  /// Opção escolhida no grupo obrigatório (o preço já vem somado em precioUnit).
+  opcion     String?
+  rondaId    String?
+  comanda    Comanda                @relation(fields: [comandaId], references: [id])
+  producto   Producto               @relation(fields: [productoId], references: [id])
+  ronda      Ronda?                 @relation(fields: [rondaId], references: [id])
+  adicionais ComandaItemAdicional[]
+}
+
+model ComandaItemAdicional {
+  id            String      @id @default(cuid())
+  comandaItemId String
+  nombre        String
+  precio        Decimal
+  comandaItem   ComandaItem @relation(fields: [comandaItemId], references: [id], onDelete: Cascade)
 }
 
 model Venta {
@@ -62,6 +134,8 @@ model Venta {
   nombreCliente String      @default("Mostrador")
   subtotal      Decimal
   descuento     Decimal     @default(0)
+  /// Taxa de serviço (gorjeta), separada do consumo. total = subtotal - descuento + servicio.
+  servicio      Decimal     @default(0)
   total         Decimal
   metodoPago    MetodoPago
   estado        EstadoVenta @default(RECIBIDO)
@@ -75,15 +149,24 @@ model Venta {
 }
 
 model VentaItem {
-  id         String   @id @default(cuid())
+  id         String               @id @default(cuid())
   ventaId    String
   productoId String
   cantidad   Decimal
   precioUnit Decimal
   total      Decimal
   notas      String?
-  venta      Venta    @relation(fields: [ventaId], references: [id])
-  producto   Producto @relation(fields: [productoId], references: [id])
+  venta      Venta                @relation(fields: [ventaId], references: [id])
+  producto   Producto             @relation(fields: [productoId], references: [id])
+  adicionais VentaItemAdicional[]
+}
+
+model VentaItemAdicional {
+  id          String    @id @default(cuid())
+  ventaItemId String
+  nombre      String
+  precio      Decimal
+  ventaItem   VentaItem @relation(fields: [ventaItemId], references: [id], onDelete: Cascade)
 }
 
 model CajaSesion {
@@ -115,6 +198,11 @@ enum TipoUnidad {
 enum EstadoComanda {
   ABIERTA
   CERRADA
+}
+
+enum TipoMesa {
+  NUMERO
+  NOMBRE
 }
 
 enum OrigenVenta {

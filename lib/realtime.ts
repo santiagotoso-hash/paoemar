@@ -47,7 +47,8 @@ export type VentaEvent = {
   id: string;
   codigo: string;
   nombreCliente: string;
-  origen: "MOSTRADOR" | "COMANDA";
+  /** "MESA" = rodada lançada por um atendente (o id é o da Ronda, não de uma Venta). */
+  origen: "MOSTRADOR" | "COMANDA" | "MESA";
   estado: "RECIBIDO" | "EN_PREPARACION" | "LISTO" | "ENTREGADO";
   createdAt: string;
   items: VentaEventItem[];

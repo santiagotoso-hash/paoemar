@@ -61,7 +61,11 @@ function MovimientoForm({ onDone }: { onDone: () => void }) {
     <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row sm:items-end">
       <div className="flex flex-col gap-1.5">
         <Label>Tipo</Label>
-        <Select value={tipo} onValueChange={(v) => setTipo(v as "SANGRIA" | "SUMINISTRO")}>
+        <Select
+          value={tipo}
+          onValueChange={(v) => setTipo(v as "SANGRIA" | "SUMINISTRO")}
+          items={{ SANGRIA: "Sangría (retiro)", SUMINISTRO: "Suministro (ingreso)" }}
+        >
           <SelectTrigger className="w-40">
             <SelectValue />
           </SelectTrigger>

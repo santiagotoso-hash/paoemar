@@ -8,7 +8,7 @@ const NAV_ITEMS = [
   { href: "/admin/productos", label: "Admin", roles: ["admin"] },
   { href: "/pos", label: "Mostrador", roles: ["admin", "cajero", "mostrador"] },
   { href: "/caja", label: "Caja", roles: ["admin", "cajero"] },
-  { href: "/comandas", label: "Comandas", roles: ["admin", "mostrador"] },
+  { href: "/mesas", label: "Mesas", roles: ["admin", "mostrador"] },
   { href: "/cocina", label: "Cocina", roles: ["admin", "cocina"] },
 ];
 

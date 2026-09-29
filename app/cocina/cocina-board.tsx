@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { VentaEvent } from "@/lib/realtime";
-import { avanzarEstadoVenta } from "./actions";
+import { avanzarEstadoRonda, avanzarEstadoVenta } from "./actions";
 
 const COLUMNAS = [
   { estado: "RECIBIDO", label: "Recibido" },
@@ -16,6 +16,7 @@ const COLUMNAS = [
 const ORIGEN_LABEL: Record<string, string> = {
   MOSTRADOR: "Mostrador",
   COMANDA: "Comanda",
+  MESA: "Mesa",
 };
 
 export function CocinaBoard({ ventasIniciales }: { ventasIniciales: VentaEvent[] }) {
@@ -41,9 +42,9 @@ export function CocinaBoard({ ventasIniciales }: { ventasIniciales: VentaEvent[]
     return () => source.close();
   }, []);
 
-  async function handleAvanzar(id: string) {
+  async function handleAvanzar(v: VentaEvent) {
     try {
-      await avanzarEstadoVenta(id);
+      await (v.origen === "MESA" ? avanzarEstadoRonda(v.id) : avanzarEstadoVenta(v.id));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al avanzar el estado");
     }
@@ -76,7 +77,7 @@ export function CocinaBoard({ ventasIniciales }: { ventasIniciales: VentaEvent[]
                       </li>
                     ))}
                   </ul>
-                  <Button size="sm" onClick={() => handleAvanzar(v.id)}>
+                  <Button size="sm" onClick={() => handleAvanzar(v)}>
                     {col.estado === "LISTO" ? "Marcar entregado" : "Avanzar"}
                   </Button>
                 </CardContent>

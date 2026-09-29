@@ -1,6 +1,6 @@
 import { currentUser, clerkClient } from "@clerk/nextjs/server";
 
-export const ROLES = ["admin", "cajero", "cocina", "mostrador"] as const;
+export const ROLES = ["admin", "superadmin", "user", "cajero", "cocina", "mostrador"] as const;
 export type Role = (typeof ROLES)[number];
 
 /**
@@ -8,11 +8,12 @@ export type Role = (typeof ROLES)[number];
  * (redirect antes de renderizar) como cualquier chequeo server-side.
  */
 export const ROUTE_ROLES: Record<string, Role[]> = {
-  "/admin": ["admin"],
-  "/pos": ["admin", "cajero", "mostrador"],
-  "/caja": ["admin", "cajero"],
-  "/comandas": ["admin", "mostrador"],
-  "/cocina": ["admin", "cocina"],
+  "/admin": ["admin", "superadmin"],
+  "/pos": ["admin", "superadmin", "cajero", "mostrador"],
+  "/caja": ["admin", "superadmin", "cajero"],
+  "/comandas": ["admin", "superadmin", "mostrador"],
+  "/mesas": ["admin", "superadmin", "mostrador"],
+  "/cocina": ["admin", "superadmin", "cocina"],
 };
 
 const AUTO_ADMIN_EMAILS = (process.env.ADMIN_AUTO_EMAILS ?? "")
@@ -21,10 +22,9 @@ const AUTO_ADMIN_EMAILS = (process.env.ADMIN_AUTO_EMAILS ?? "")
   .filter(Boolean);
 
 /**
- * Si el usuario todavía no tiene rol y su email está en ADMIN_AUTO_EMAILS,
- * le asigna "admin" en el momento (pensado para demos: el cliente se
- * registra y ya entra con acceso completo, sin que un admin tenga que
- * asignarle el rol a mano desde el dashboard de Clerk).
+ * Si el usuario todavía no tiene rol:
+ * - Se le asigna "admin" si su email está en ADMIN_AUTO_EMAILS.
+ * - De lo contrario, se le asigna "user" por defecto.
  */
 export async function resolveRole(
   userId: string,
@@ -32,12 +32,16 @@ export async function resolveRole(
   currentRole: Role | null
 ): Promise<Role | null> {
   if (currentRole) return currentRole;
-  if (!email || AUTO_ADMIN_EMAILS.length === 0) return null;
-  if (!AUTO_ADMIN_EMAILS.includes(email.toLowerCase())) return null;
+  
+  let newRole: Role = "user";
+  
+  if (email && AUTO_ADMIN_EMAILS.length > 0 && AUTO_ADMIN_EMAILS.includes(email.toLowerCase())) {
+    newRole = "admin";
+  }
 
   const client = await clerkClient();
-  await client.users.updateUserMetadata(userId, { publicMetadata: { role: "admin" } });
-  return "admin";
+  await client.users.updateUserMetadata(userId, { publicMetadata: { role: newRole } });
+  return newRole;
 }
 
 export async function getCurrentUser(): Promise<{ userId: string; role: Role | null }> {
