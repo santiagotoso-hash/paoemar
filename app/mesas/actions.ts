@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireRole, ROUTE_ROLES } from "@/lib/auth";
 import {
+  chaveTentativasAutorizacao,
   chaveTentativasPin,
   conferirDonoDaMesa,
   encerrarSessaoAtendente,
@@ -48,9 +49,8 @@ export async function entrarAtendente(input: unknown): Promise<{ ok: true } | { 
  * Confere o PIN com limite de tentativas (login e autorização de supervisor).
  * Conta a tentativa antes de conferir (INCR é atômico: tentativas em paralelo também contam).
  */
-async function conferirPin(atendenteId: string, pin: string) {
+async function conferirPin(atendenteId: string, pin: string, chave = chaveTentativasPin(atendenteId)) {
   const redis = getRedisPublisher();
-  const chave = chaveTentativasPin(atendenteId);
   const tentativas = await redis.incr(chave);
   if (tentativas === 1) await redis.expire(chave, JANELA_PIN_SEG);
   if (tentativas > MAX_TENTATIVAS_PIN) {
@@ -257,7 +257,8 @@ export async function alterarPessoas(comandaId: string, personas: number) {
 
 const cancelarItemSchema = z.object({
   itemId: z.string().min(1),
-  cantidad: z.number().int().min(1).max(99),
+  // Decimal: itens por kg (ex.: 0,5 kg) também precisam poder ser cancelados.
+  cantidad: z.number().positive().max(99),
   motivo: z.string().trim().min(5, "Explique o motivo (mínimo 5 letras)").max(300),
   supervisorId: z.string().min(1, "Escolha o supervisor"),
   pin: z.string().regex(/^\d{4}$/, "O PIN tem 4 dígitos"),
@@ -281,7 +282,11 @@ export async function cancelarItem(comandaId: string, input: unknown): Promise<R
   if (!supervisor?.activo || !supervisor.supervisor) {
     return { ok: false, error: "Só um supervisor pode autorizar o cancelamento" };
   }
-  const pin = await conferirPin(data.supervisorId, data.pin);
+  const pin = await conferirPin(
+    data.supervisorId,
+    data.pin,
+    chaveTentativasAutorizacao(data.supervisorId, atendente.id)
+  );
   if (!pin.ok) return pin;
 
   const res = await prisma.$transaction(async (tx) => {
@@ -294,7 +299,8 @@ export async function cancelarItem(comandaId: string, input: unknown): Promise<R
     });
     if (!item || item.comandaId !== comandaId) return { error: "Item não encontrado nesta mesa" };
     const qtdAtual = Number(item.cantidad);
-    if (data.cantidad > qtdAtual) return { error: `Só há ${qtdAtual} deste item` };
+    if (data.cantidad - qtdAtual > 1e-9) return { error: `Só há ${qtdAtual} deste item` };
+    const cancelaTudo = Math.abs(qtdAtual - data.cantidad) < 1e-9;
 
     const valor = redondear2(totalItem({ ...item, cantidad: data.cantidad }));
     const detalhe = [item.opcion, ...item.adicionais.map((a) => `+ ${a.nombre}`), item.notas && `obs: ${item.notas}`]
@@ -316,7 +322,7 @@ export async function cancelarItem(comandaId: string, input: unknown): Promise<R
       },
     });
 
-    if (data.cantidad === qtdAtual) await tx.comandaItem.delete({ where: { id: item.id } });
+    if (cancelaTudo) await tx.comandaItem.delete({ where: { id: item.id } });
     else await tx.comandaItem.update({ where: { id: item.id }, data: { cantidad: { decrement: data.cantidad } } });
 
     return { rondaId: item.rondaId };
@@ -354,9 +360,10 @@ export async function liberarMesa(comandaId: string, input: unknown): Promise<Re
   const semPermissao = await conferirDonoDaMesa(atendente, comandaId);
   if (semPermissao) return { ok: false, error: semPermissao };
 
-  const teveCancelamentos = (await prisma.cancelamentoItem.count({ where: { comandaId } })) > 0;
-  if (teveCancelamentos) {
-    if (!data.supervisorId || !data.pin) return { ok: false, error: "Precisa da autorização de um supervisor" };
+  // A autorização (se veio) é conferida antes; se a mesa teve cancelamentos é decidido
+  // dentro da transação, com a comanda travada (um cancelamento em paralelo não escapa).
+  let autorizado = false;
+  if (data.supervisorId && data.pin) {
     const supervisor = await prisma.atendente.findUnique({
       where: { id: data.supervisorId },
       select: { supervisor: true, activo: true },
@@ -364,12 +371,20 @@ export async function liberarMesa(comandaId: string, input: unknown): Promise<Re
     if (!supervisor?.activo || !supervisor.supervisor) {
       return { ok: false, error: "Só um supervisor pode autorizar" };
     }
-    const pin = await conferirPin(data.supervisorId, data.pin);
+    const pin = await conferirPin(
+      data.supervisorId,
+      data.pin,
+      chaveTentativasAutorizacao(data.supervisorId, atendente.id)
+    );
     if (!pin.ok) return pin;
+    autorizado = true;
   }
 
   const res = await prisma.$transaction(async (tx) => {
     if (!(await bloquearComandaAbierta(tx, comandaId))) return "Esta mesa não está aberta";
+    if (!autorizado && (await tx.cancelamentoItem.count({ where: { comandaId } })) > 0) {
+      return "Precisa da autorização de um supervisor";
+    }
     if ((await tx.comandaItem.count({ where: { comandaId } })) > 0) {
       return "A mesa tem itens lançados: feche a conta ou cancele os itens";
     }

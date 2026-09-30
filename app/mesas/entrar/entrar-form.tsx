@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { registrarAtividade } from "@/lib/inatividade";
 import { cn } from "@/lib/utils";
 import { AvatarAtendente } from "../avatar-atendente";
 import { TecladoNumerico } from "../teclado-numerico";
@@ -56,6 +57,7 @@ export function EntrarForm({
         setPin("");
         return;
       }
+      registrarAtividade(atendenteId); // relógio de inatividade começa agora
       router.push(voltar);
       router.refresh();
     } catch (err) {

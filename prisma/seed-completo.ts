@@ -20,6 +20,7 @@ async function main() {
   await prisma.comandaItemAdicional.deleteMany();
   await prisma.ventaItem.deleteMany();
   await prisma.comandaItem.deleteMany();
+  await prisma.cancelamentoItem.deleteMany();
   await prisma.ronda.deleteMany();
   await prisma.venta.deleteMany();
   await prisma.comanda.deleteMany();

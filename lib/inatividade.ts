@@ -10,3 +10,26 @@ export function voltarSeguro(voltar: string | undefined | null) {
   }
   return voltar;
 }
+
+/**
+ * Última atividade do atendente neste aparelho (localStorage). Assim recarregar a página
+ * não zera o relógio de inatividade, e várias abas compartilham o mesmo relógio.
+ */
+const CHAVE_ATIVIDADE = "atendente-ultima-atividade:";
+
+export function lerUltimaAtividade(atendenteId: string): number | null {
+  try {
+    const v = Number(localStorage.getItem(CHAVE_ATIVIDADE + atendenteId));
+    return Number.isFinite(v) && v > 0 ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+export function registrarAtividade(atendenteId: string, quando = Date.now()) {
+  try {
+    localStorage.setItem(CHAVE_ATIVIDADE + atendenteId, String(quando));
+  } catch {
+    // armazenamento indisponível: o relógio segue só em memória nesta aba
+  }
+}
