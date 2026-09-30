@@ -10,7 +10,7 @@ export async function abrirCaja(input: unknown) {
   const data = z.object({ fondoInicial: z.coerce.number().min(0) }).parse(input);
 
   const existing = await prisma.cajaSesion.findFirst({ where: { operadorId: userId, abierta: true } });
-  if (existing) throw new Error("Ya tenés una caja abierta");
+  if (existing) throw new Error("Você já tem um caixa aberto");
 
   await prisma.cajaSesion.create({ data: { operadorId: userId, fondoInicial: data.fondoInicial } });
   revalidatePath("/caja");
@@ -18,7 +18,7 @@ export async function abrirCaja(input: unknown) {
 
 const movimientoSchema = z.object({
   tipo: z.enum(["SANGRIA", "SUMINISTRO"]),
-  monto: z.coerce.number().positive("Tiene que ser mayor a 0"),
+  monto: z.coerce.number().positive("Tem que ser maior que 0"),
   descripcion: z.string().optional(),
 });
 
@@ -27,7 +27,7 @@ export async function registrarMovimiento(input: unknown) {
   const data = movimientoSchema.parse(input);
 
   const sesion = await prisma.cajaSesion.findFirst({ where: { operadorId: userId, abierta: true } });
-  if (!sesion) throw new Error("No tenés una caja abierta");
+  if (!sesion) throw new Error("Você não tem um caixa aberto");
 
   await prisma.cajaMovimiento.create({
     data: {
@@ -43,7 +43,7 @@ export async function registrarMovimiento(input: unknown) {
 export async function cerrarCaja() {
   const { userId } = await requireRole(ROUTE_ROLES["/caja"]);
   const sesion = await prisma.cajaSesion.findFirst({ where: { operadorId: userId, abierta: true } });
-  if (!sesion) throw new Error("No tenés una caja abierta");
+  if (!sesion) throw new Error("Você não tem um caixa aberto");
 
   await prisma.cajaSesion.update({
     where: { id: sesion.id },

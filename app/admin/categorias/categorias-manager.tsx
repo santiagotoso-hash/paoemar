@@ -35,14 +35,14 @@ function CategoriaForm({
     try {
       if (categoria) {
         await editarCategoria(categoria.id, { nombre, icono });
-        toast.success("Categoría actualizada");
+        toast.success("Categoria atualizada");
       } else {
         await crearCategoria({ nombre, icono });
-        toast.success("Categoría creada");
+        toast.success("Categoria criada");
       }
       onDone();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al guardar");
+      toast.error(err instanceof Error ? err.message : "Erro ao salvar");
     } finally {
       setLoading(false);
     }
@@ -51,16 +51,16 @@ function CategoriaForm({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="nombre">Nombre</Label>
+        <Label htmlFor="nombre">Nome</Label>
         <Input id="nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} required />
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="icono">Ícono (emoji, opcional)</Label>
+        <Label htmlFor="icono">Ícone (emoji, opcional)</Label>
         <Input id="icono" value={icono} onChange={(e) => setIcono(e.target.value)} placeholder="🍞" />
       </div>
       <DialogFooter>
         <Button type="submit" disabled={loading}>
-          {loading ? "Guardando..." : "Guardar"}
+          {loading ? "Salvando..." : "Salvar"}
         </Button>
       </DialogFooter>
     </form>
@@ -75,10 +75,10 @@ export function CategoriasManager({ categorias }: { categorias: Categoria[] }) {
     <div className="flex flex-col gap-4">
       <div className="flex justify-end">
         <Dialog open={openNueva} onOpenChange={setOpenNueva}>
-          <DialogTrigger render={<Button />}>Nueva categoría</DialogTrigger>
+          <DialogTrigger render={<Button />}>Nova categoria</DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Nueva categoría</DialogTitle>
+              <DialogTitle>Nova categoria</DialogTitle>
             </DialogHeader>
             <CategoriaForm onDone={() => setOpenNueva(false)} />
           </DialogContent>
@@ -88,9 +88,9 @@ export function CategoriasManager({ categorias }: { categorias: Categoria[] }) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Ícono</TableHead>
-            <TableHead>Nombre</TableHead>
-            <TableHead className="text-right">Acciones</TableHead>
+            <TableHead>Ícone</TableHead>
+            <TableHead>Nome</TableHead>
+            <TableHead className="text-right">Ações</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -111,7 +111,7 @@ export function CategoriasManager({ categorias }: { categorias: Categoria[] }) {
       <Dialog open={!!editando} onOpenChange={(open) => !open && setEditando(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Editar categoría</DialogTitle>
+            <DialogTitle>Editar categoria</DialogTitle>
           </DialogHeader>
           {editando && <CategoriaForm categoria={editando} onDone={() => setEditando(null)} />}
         </DialogContent>

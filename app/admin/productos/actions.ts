@@ -7,10 +7,10 @@ import { requireRole, ROUTE_ROLES } from "@/lib/auth";
 import { publishStockAlerts } from "@/lib/realtime";
 
 const productoSchema = z.object({
-  codigo: z.string().min(1, "Requerido"),
-  nombre: z.string().min(1, "Requerido"),
-  categoriaId: z.string().min(1, "Elegí una categoría"),
-  precio: z.coerce.number().positive("Tiene que ser mayor a 0"),
+  codigo: z.string().min(1, "Obrigatório"),
+  nombre: z.string().min(1, "Obrigatório"),
+  categoriaId: z.string().min(1, "Escolha uma categoria"),
+  precio: z.coerce.number().positive("Tem que ser maior que 0"),
   tipoUnidad: z.enum(["UNIDAD", "KG"]),
   descripcion: z.string().optional(),
   stockActual: z.coerce.number().min(0),

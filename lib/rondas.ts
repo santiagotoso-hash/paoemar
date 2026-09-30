@@ -40,6 +40,7 @@ export function rondaParaEvento(ronda: RondaCocina, numero: number): VentaEvent 
     origen: "MESA",
     estado: ronda.estado,
     createdAt: ronda.creadaEn.toISOString(),
+    estadoDesde: ronda.estadoDesde.toISOString(),
     items: ronda.items.map((i) => ({
       productoNombre: i.producto.nombre,
       cantidad: i.cantidad.toString(),

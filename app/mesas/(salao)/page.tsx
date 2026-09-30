@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getAtendenteActual } from "@/lib/atendente";
+import { getAtendenteActual, podeModificarMesa } from "@/lib/atendente";
 import { chaveMesa, MESAS_DA_CASA, totalItem } from "@/lib/mesas";
 import { ChipAtendente } from "../chip-atendente";
 import { MesasGrid, type MesaCard } from "./mesas-grid";
@@ -14,6 +14,8 @@ export default async function MesasPage() {
         codigo: true,
         tipo: true,
         abiertaEn: true,
+        atendenteId: true,
+        atendente: { select: { nombre: true } },
         items: {
           select: {
             cantidad: true,
@@ -33,6 +35,8 @@ export default async function MesasPage() {
       tipo: c.tipo,
       rotulo: c.codigo,
       comandaId: c.id,
+      dono: c.atendente?.nombre ?? null,
+      minha: podeModificarMesa(atendente!, c.atendenteId),
       abertaEm: c.abiertaEn.toISOString(),
       total: c.items.reduce((acc, i) => acc + totalItem(i), 0),
       // Produto por kg conta como 1 item.

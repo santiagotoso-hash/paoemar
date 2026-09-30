@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { alternarAtendenteActivo, crearAtendente, editarAtendente } from "./actions";
 
-type Atendente = { id: string; nombre: string; activo: boolean };
+type Atendente = { id: string; nombre: string; activo: boolean; supervisor: boolean };
 
 function AtendenteForm({
   atendente,
@@ -28,6 +28,7 @@ function AtendenteForm({
 }) {
   const [nombre, setNombre] = useState(atendente?.nombre ?? "");
   const [pin, setPin] = useState("");
+  const [supervisor, setSupervisor] = useState(atendente?.supervisor ?? false);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -35,10 +36,10 @@ function AtendenteForm({
     setLoading(true);
     try {
       if (atendente) {
-        await editarAtendente(atendente.id, { nombre, pin });
+        await editarAtendente(atendente.id, { nombre, pin, supervisor });
         toast.success("Atendente atualizado");
       } else {
-        await crearAtendente({ nombre, pin });
+        await crearAtendente({ nombre, pin, supervisor });
         toast.success("Atendente criado");
       }
       onDone();
@@ -70,6 +71,18 @@ function AtendenteForm({
           placeholder="••••"
         />
       </div>
+      <label className="flex items-start gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={supervisor}
+          onChange={(e) => setSupervisor(e.target.checked)}
+          className="mt-0.5 size-4 accent-primary"
+        />
+        <span>
+          <span className="font-medium">Supervisor</span>
+          <span className="block text-muted-foreground">Pode autorizar cancelamento de itens com o próprio PIN.</span>
+        </span>
+      </label>
       <DialogFooter>
         <Button type="submit" disabled={loading}>
           {loading ? "Salvando..." : "Salvar"}
@@ -120,6 +133,11 @@ export function AtendentesManager({ atendentes }: { atendentes: Atendente[] }) {
               <TableCell>{a.nombre}</TableCell>
               <TableCell>
                 <Badge variant={a.activo ? "default" : "outline"}>{a.activo ? "Ativo" : "Inativo"}</Badge>
+                {a.supervisor && (
+                  <Badge variant="outline" className="ml-2">
+                    Supervisor
+                  </Badge>
+                )}
               </TableCell>
               <TableCell className="flex justify-end gap-2">
                 <Button variant="outline" size="sm" onClick={() => setEditando(a)}>

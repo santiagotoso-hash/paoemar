@@ -14,7 +14,8 @@ export default async function CocinaPage() {
     }),
     // Rodadas lanzadas desde las mesas
     prisma.ronda.findMany({
-      where: pendientes,
+      // Rodada que ficou vazia (todos os itens cancelados) não aparece.
+      where: { ...pendientes, items: { some: {} } },
       include: rondaCocinaInclude,
       orderBy: { creadaEn: "asc" },
     }),

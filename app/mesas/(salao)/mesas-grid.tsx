@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Eye, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatBRL, tempoDesde } from "@/lib/format";
@@ -13,7 +13,16 @@ export type MesaCard = {
   tipo: "NUMERO" | "NOMBRE";
   rotulo: string;
 } & (
-  | { comandaId: string; abertaEm: string; total: number; qtdItens: number }
+  | {
+      comandaId: string;
+      abertaEm: string;
+      total: number;
+      qtdItens: number;
+      /** Quem abriu a mesa. */
+      dono: string | null;
+      /** O atendente logado pode modificar (é dono ou supervisor). */
+      minha: boolean;
+    }
   | { comandaId: null }
 );
 
@@ -97,6 +106,12 @@ export function MesasGrid({ mesas }: { mesas: MesaCard[] }) {
                   <span className="text-xs text-muted-foreground">
                     {m.qtdItens} {m.qtdItens === 1 ? "item" : "itens"} · {tempoDesde(m.abertaEm, agora)}
                   </span>
+                  {m.dono && (
+                    <span className={cn("inline-flex items-center gap-1 text-xs", m.minha ? "font-medium text-primary" : "text-muted-foreground")}>
+                      {!m.minha && <Eye className="size-3" aria-label="Só visualização" />}
+                      {m.dono}
+                    </span>
+                  )}
                 </Link>
               ) : (
                 <Link

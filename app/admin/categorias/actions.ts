@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole, ROUTE_ROLES } from "@/lib/auth";
 
 const categoriaSchema = z.object({
-  nombre: z.string().min(1, "Requerido"),
+  nombre: z.string().min(1, "Obrigatório"),
   icono: z.string().optional(),
 });
 

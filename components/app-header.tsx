@@ -6,10 +6,10 @@ import { HeaderNav } from "@/components/header-nav";
 
 const NAV_ITEMS = [
   { href: "/admin/productos", label: "Admin", roles: ROUTE_ROLES["/admin"] },
-  { href: "/pos", label: "Mostrador", roles: ROUTE_ROLES["/pos"] },
-  { href: "/caja", label: "Caja", roles: ROUTE_ROLES["/caja"] },
+  { href: "/pos", label: "Balcão", roles: ROUTE_ROLES["/pos"] },
+  { href: "/caja", label: "Caixa", roles: ROUTE_ROLES["/caja"] },
   { href: "/mesas", label: "Mesas", roles: ROUTE_ROLES["/mesas"] },
-  { href: "/cocina", label: "Cocina", roles: ROUTE_ROLES["/cocina"] },
+  { href: "/cocina", label: "Cozinha", roles: ROUTE_ROLES["/cocina"] },
 ];
 
 export async function AppHeader() {
@@ -29,7 +29,7 @@ export async function AppHeader() {
           {userId ? (
             <UserButton />
           ) : (
-            <Button size="sm" render={<Link href="/sign-in">Iniciar sesión</Link>} />
+            <Button size="sm" render={<Link href="/sign-in">Entrar</Link>} />
           )}
         </div>
       </div>

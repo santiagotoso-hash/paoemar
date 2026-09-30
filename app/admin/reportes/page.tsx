@@ -1,13 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { formatBRL } from "@/lib/format";
+import { METODOS_PAGO } from "@/lib/metodos-pago";
 
-const METODO_PAGO_LABEL: Record<string, string> = {
-  EFECTIVO: "Efectivo",
-  TARJETA_CREDITO: "Tarjeta de crédito",
-  TARJETA_DEBITO: "Tarjeta de débito",
-  TRANSFERENCIA: "Transferencia",
-};
+const METODO_PAGO_LABEL: Record<string, string> = Object.fromEntries(METODOS_PAGO.map((m) => [m.value, m.label]));
 
 export default async function ReportesPage() {
   const [agregado, porMetodoPago, topItems] = await Promise.all([
@@ -39,28 +36,28 @@ export default async function ReportesPage() {
       <div className="grid gap-4 sm:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Ticket promedio</CardTitle>
+            <CardTitle>Ticket médio</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-semibold">${ticketPromedio.toFixed(2)}</p>
-            <p className="text-sm text-muted-foreground">{cantidadVentas} venta(s) en total</p>
+            <p className="text-2xl font-semibold">{formatBRL(ticketPromedio)}</p>
+            <p className="text-sm text-muted-foreground">{cantidadVentas} venda(s) no total</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Ventas por método de pago</CardTitle>
+            <CardTitle>Vendas por forma de pagamento</CardTitle>
           </CardHeader>
           <CardContent>
             {porMetodoPago.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Todavía no hay ventas.</p>
+              <p className="text-sm text-muted-foreground">Ainda não há vendas.</p>
             ) : (
               <ul className="flex flex-col gap-1 text-sm">
                 {porMetodoPago.map((m) => (
                   <li key={m.metodoPago} className="flex justify-between">
                     <span>{METODO_PAGO_LABEL[m.metodoPago] ?? m.metodoPago}</span>
                     <span className="font-medium">
-                      ${Number(m._sum.total ?? 0).toFixed(2)} ({m._count._all})
+                      {formatBRL(Number(m._sum.total ?? 0))} ({m._count._all})
                     </span>
                   </li>
                 ))}
@@ -72,17 +69,17 @@ export default async function ReportesPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Top 5 productos más vendidos</CardTitle>
+          <CardTitle>Top 5 produtos mais vendidos</CardTitle>
         </CardHeader>
         <CardContent>
           {topItems.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Todavía no hay ventas.</p>
+            <p className="text-sm text-muted-foreground">Ainda não há vendas.</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Producto</TableHead>
-                  <TableHead>Cantidad vendida</TableHead>
+                  <TableHead>Produto</TableHead>
+                  <TableHead>Quantidade vendida</TableHead>
                   <TableHead className="text-right">Total</TableHead>
                 </TableRow>
               </TableHeader>
@@ -91,7 +88,7 @@ export default async function ReportesPage() {
                   <TableRow key={t.productoId}>
                     <TableCell>{nombreProducto(t.productoId)}</TableCell>
                     <TableCell>{t._sum.cantidad?.toString()}</TableCell>
-                    <TableCell className="text-right">${Number(t._sum.total ?? 0).toFixed(2)}</TableCell>
+                    <TableCell className="text-right">{formatBRL(Number(t._sum.total ?? 0))}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

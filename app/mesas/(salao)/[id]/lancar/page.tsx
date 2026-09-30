@@ -1,14 +1,19 @@
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { getAtendenteActual, podeModificarMesa } from "@/lib/atendente";
 import { LancarItens, type ProdutoMesa } from "./lancar-itens";
 
 export default async function LancarPage({ params }: { params: { id: string } }) {
   const comanda = await prisma.comanda.findUnique({
     where: { id: params.id },
-    select: { id: true, codigo: true, tipo: true, personas: true, estado: true },
+    select: { id: true, codigo: true, tipo: true, personas: true, estado: true, atendenteId: true },
   });
   if (!comanda) notFound();
-  if (comanda.estado !== "ABIERTA") redirect("/mesas");
+  // ?fechada= avisa o bloqueio de saída que os pendentes desta mesa não têm mais destino.
+  if (comanda.estado !== "ABIERTA") redirect(`/mesas?fechada=${comanda.id}`);
+  // Mesa de outro atendente: não lança itens, só vê a comanda.
+  const atendente = await getAtendenteActual();
+  if (!atendente || !podeModificarMesa(atendente, comanda.atendenteId)) redirect(`/mesas/${comanda.id}`);
 
   const [categorias, productos] = await Promise.all([
     prisma.categoria.findMany({ orderBy: { nombre: "asc" } }),

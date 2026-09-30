@@ -63,32 +63,59 @@ model Adicional {
 }
 
 model Comanda {
-  id            String        @id @default(cuid())
+  id            String             @id @default(cuid())
   codigo        String
   nombreCliente String?
-  estado        EstadoComanda @default(ABIERTA)
-  abiertaEn     DateTime      @default(now())
+  estado        EstadoComanda      @default(ABIERTA)
+  abiertaEn     DateTime           @default(now())
   cerradaEn     DateTime?
-  tipo          TipoMesa      @default(NOMBRE)
+  tipo          TipoMesa           @default(NOMBRE)
   personas      Int?
   /// Taxa de serviço. As mesas abrem com true; as comandas da tela antiga ficam sem.
-  servicio      Boolean       @default(false)
+  servicio      Boolean            @default(false)
   atendenteId   String?
-  atendente     Atendente?    @relation(fields: [atendenteId], references: [id])
+  atendente     Atendente?         @relation(fields: [atendenteId], references: [id])
   items         ComandaItem[]
   rondas        Ronda[]
+  cancelamentos CancelamentoItem[]
   venta         Venta?
 }
 
 /// Atendente do salão: entra com PIN por cima da sessão Clerk do aparelho.
 model Atendente {
-  id       String    @id @default(cuid())
-  nombre   String
-  pinHash  String
-  activo   Boolean   @default(true)
-  creadoEn DateTime  @default(now())
-  comandas Comanda[]
-  rondas   Ronda[]
+  id                       String             @id @default(cuid())
+  nombre                   String
+  pinHash                  String
+  activo                   Boolean            @default(true)
+  /// Pode autorizar cancelamento de itens já lançados (com o próprio PIN).
+  supervisor               Boolean            @default(false)
+  creadoEn                 DateTime           @default(now())
+  comandas                 Comanda[]
+  rondas                   Ronda[]
+  cancelamentosAutorizados CancelamentoItem[] @relation("CancelamentoSupervisor")
+  cancelamentosPedidos     CancelamentoItem[] @relation("CancelamentoAtendente")
+}
+
+/// Registro (auditoria) de itens lançados que foram cancelados antes de fechar a conta.
+/// Guarda cópia do nome/valor: o registro não muda se o produto mudar depois.
+model CancelamentoItem {
+  id             String    @id @default(cuid())
+  comandaId      String
+  rondaId        String?
+  productoId     String
+  productoNombre String
+  detalhe        String?
+  cantidad       Decimal
+  valor          Decimal
+  motivo         String
+  supervisorId   String
+  atendenteId    String
+  criadoEm       DateTime  @default(now())
+  comanda        Comanda   @relation(fields: [comandaId], references: [id])
+  supervisor     Atendente @relation("CancelamentoSupervisor", fields: [supervisorId], references: [id])
+  atendente      Atendente @relation("CancelamentoAtendente", fields: [atendenteId], references: [id])
+
+  @@index([criadoEm])
 }
 
 /// Um envio de itens da mesa para a cozinha. Reaproveita os estados da cozinha.
@@ -100,6 +127,8 @@ model Ronda {
   clave       String?       @unique
   creadaEn    DateTime      @default(now())
   estado      EstadoVenta   @default(RECIBIDO)
+  /// Quando o estado mudou pela última vez (para detectar pedido parado).
+  estadoDesde DateTime      @default(now())
   comanda     Comanda       @relation(fields: [comandaId], references: [id])
   atendente   Atendente     @relation(fields: [atendenteId], references: [id])
   items       ComandaItem[]

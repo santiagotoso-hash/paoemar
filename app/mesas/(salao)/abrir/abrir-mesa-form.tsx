@@ -34,7 +34,7 @@ export function AbrirMesaForm({
   const [tipo, setTipo] = useState<Tipo>(tipoInicial);
   const [numero, setNumero] = useState(tipoInicial === "NUMERO" ? rotuloInicial : "");
   const [nome, setNome] = useState(tipoInicial === "NOMBRE" ? rotuloInicial : "");
-  const [pessoas, setPessoas] = useState(0);
+  const [pessoas, setPessoas] = useState(1);
   const [loading, setLoading] = useState(false);
   // Se o servidor encontrar uma mesa aberta que a lista local ainda não tinha.
   const [existenteServidor, setExistenteServidor] = useState<Aberta | null>(null);
@@ -68,7 +68,7 @@ export function AbrirMesaForm({
     if (!rotulo || existente) return;
     setLoading(true);
     try {
-      const res = await abrirMesa({ tipo, rotulo, personas: pessoas || undefined });
+      const res = await abrirMesa({ tipo, rotulo, personas: pessoas });
       if (!res.ok) {
         if (res.existente) setExistenteServidor(res.existente);
         else toast.error(res.error);
@@ -189,9 +189,9 @@ export function AbrirMesaForm({
       <div className="flex items-center justify-between gap-3 rounded-2xl border bg-card p-3">
         <div>
           <p className="text-sm font-medium">Pessoas</p>
-          <p className="text-xs text-muted-foreground">Opcional</p>
+          <p className="text-xs text-muted-foreground">Dá para mudar depois</p>
         </div>
-        <Contador valor={pessoas} onChange={setPessoas} nome="pessoas" vazio="—" />
+        <Contador valor={pessoas} onChange={setPessoas} min={1} nome="pessoas" />
       </div>
 
       <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 backdrop-blur">

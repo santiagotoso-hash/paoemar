@@ -58,7 +58,7 @@ export async function getCurrentUser(): Promise<{ userId: string; role: Role | n
 export async function requireRole(allowed: Role[]) {
   const { userId, role } = await getCurrentUser();
   if (!userId || !role || !allowed.includes(role)) {
-    throw new Error("No autorizado");
+    throw new Error("Não autorizado");
   }
   return { userId, role };
 }

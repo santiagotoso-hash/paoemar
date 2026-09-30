@@ -11,7 +11,7 @@ const itemSchema = z.object({
 });
 
 const ventaSchema = z.object({
-  items: z.array(itemSchema).min(1, "El carrito está vacío"),
+  items: z.array(itemSchema).min(1, "O carrinho está vazio"),
   metodoPago: z.enum(["EFECTIVO", "TARJETA_CREDITO", "TARJETA_DEBITO", "TRANSFERENCIA"]),
   nombreCliente: z.string().optional(),
 });

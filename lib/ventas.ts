@@ -56,7 +56,7 @@ export async function crearVentaTx(tx: Prisma.TransactionClient, params: CrearVe
   const validarStock = params.validarStock ?? true;
 
   if (items.length === 0) {
-    throw new Error("El carrito está vacío");
+    throw new Error("O carrinho está vazio");
   }
 
   const cajaSesion = await tx.cajaSesion.findFirst({
@@ -65,7 +65,7 @@ export async function crearVentaTx(tx: Prisma.TransactionClient, params: CrearVe
       : { operadorId, abierta: true },
   });
   if (!cajaSesion) {
-    throw new Error("No tenés una caja abierta. Abrí una caja antes de vender.");
+    throw new Error("Você não tem um caixa aberto. Abra um caixa antes de vender.");
   }
 
   const productos = await tx.producto.findMany({
@@ -75,10 +75,10 @@ export async function crearVentaTx(tx: Prisma.TransactionClient, params: CrearVe
   let subtotal = 0;
   const itemsData = items.map((item) => {
     const producto = productos.find((p) => p.id === item.productoId);
-    if (!producto) throw new Error("Uno de los productos ya no existe");
-    if (item.cantidad <= 0) throw new Error(`Cantidad inválida para ${producto.nombre}`);
+    if (!producto) throw new Error("Um dos produtos não existe mais");
+    if (item.cantidad <= 0) throw new Error(`Quantidade inválida para ${producto.nombre}`);
     if (validarStock && Number(producto.stockActual) < item.cantidad) {
-      throw new Error(`Stock insuficiente de "${producto.nombre}" (quedan ${producto.stockActual})`);
+      throw new Error(`Estoque insuficiente de "${producto.nombre}" (restam ${producto.stockActual})`);
     }
     const precioUnit = redondear2(item.precioUnit ?? Number(producto.precio));
     const adicionais = item.adicionais ?? [];
@@ -100,7 +100,7 @@ export async function crearVentaTx(tx: Prisma.TransactionClient, params: CrearVe
     data: {
       codigo,
       origen,
-      nombreCliente: nombreCliente || "Mostrador",
+      nombreCliente: nombreCliente || "Balcão",
       subtotal,
       descuento: 0,
       servicio,

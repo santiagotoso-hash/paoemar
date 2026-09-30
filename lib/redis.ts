@@ -2,7 +2,7 @@ import Redis from "ioredis";
 
 function getRedisUrl() {
   const url = process.env.UPSTASH_REDIS_URL;
-  if (!url) throw new Error("Falta UPSTASH_REDIS_URL en las variables de entorno");
+  if (!url) throw new Error("Falta UPSTASH_REDIS_URL nas variáveis de ambiente");
   return url;
 }
 

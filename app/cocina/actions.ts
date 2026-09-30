@@ -12,11 +12,11 @@ export async function avanzarEstadoVenta(ventaId: string) {
   await requireRole(ROUTE_ROLES["/cocina"]);
 
   const venta = await prisma.venta.findUnique({ where: { id: ventaId } });
-  if (!venta) throw new Error("Venta no encontrada");
+  if (!venta) throw new Error("Venda não encontrada");
 
   const idx = ORDEN_ESTADOS.indexOf(venta.estado);
   if (idx === -1 || idx === ORDEN_ESTADOS.length - 1) {
-    throw new Error("La venta ya está en el último estado");
+    throw new Error("A venda já está no último status");
   }
 
   const actualizada = await prisma.venta.update({
@@ -47,16 +47,16 @@ export async function avanzarEstadoRonda(rondaId: string) {
   await requireRole(ROUTE_ROLES["/cocina"]);
 
   const ronda = await prisma.ronda.findUnique({ where: { id: rondaId } });
-  if (!ronda) throw new Error("Rodada no encontrada");
+  if (!ronda) throw new Error("Rodada não encontrada");
 
   const idx = ORDEN_ESTADOS.indexOf(ronda.estado);
   if (idx === -1 || idx === ORDEN_ESTADOS.length - 1) {
-    throw new Error("La rodada ya está en el último estado");
+    throw new Error("A rodada já está no último status");
   }
 
   const actualizada = await prisma.ronda.update({
     where: { id: rondaId },
-    data: { estado: ORDEN_ESTADOS[idx + 1] },
+    data: { estado: ORDEN_ESTADOS[idx + 1], estadoDesde: new Date() },
     include: rondaCocinaInclude,
   });
 

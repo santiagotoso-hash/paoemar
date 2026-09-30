@@ -11,8 +11,12 @@ const pinSchema = z.string().regex(/^\d{4}$/, "O PIN tem 4 dígitos");
 
 export async function crearAtendente(input: unknown) {
   await requireRole(ROUTE_ROLES["/admin"]);
-  const data = z.object({ nombre: z.string().trim().min(1, "Obrigatório"), pin: pinSchema }).parse(input);
-  await prisma.atendente.create({ data: { nombre: data.nombre, pinHash: hashPin(data.pin) } });
+  const data = z
+    .object({ nombre: z.string().trim().min(1, "Obrigatório"), pin: pinSchema, supervisor: z.boolean().default(false) })
+    .parse(input);
+  await prisma.atendente.create({
+    data: { nombre: data.nombre, pinHash: hashPin(data.pin), supervisor: data.supervisor },
+  });
   revalidatePath("/admin/atendentes");
 }
 
@@ -20,11 +24,15 @@ export async function crearAtendente(input: unknown) {
 export async function editarAtendente(id: string, input: unknown) {
   await requireRole(ROUTE_ROLES["/admin"]);
   const data = z
-    .object({ nombre: z.string().trim().min(1, "Obrigatório"), pin: pinSchema.or(z.literal("")) })
+    .object({
+      nombre: z.string().trim().min(1, "Obrigatório"),
+      pin: pinSchema.or(z.literal("")),
+      supervisor: z.boolean().default(false),
+    })
     .parse(input);
   await prisma.atendente.update({
     where: { id },
-    data: { nombre: data.nombre, ...(data.pin ? { pinHash: hashPin(data.pin) } : {}) },
+    data: { nombre: data.nombre, supervisor: data.supervisor, ...(data.pin ? { pinHash: hashPin(data.pin) } : {}) },
   });
   // PIN novo: as sessões abertas com o PIN antigo caem sozinhas; aqui liberamos o bloqueio de tentativas.
   if (data.pin) await getRedisPublisher().del(chaveTentativasPin(id));

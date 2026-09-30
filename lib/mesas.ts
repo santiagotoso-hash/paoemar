@@ -23,6 +23,21 @@ export function nomeMesa(tipo: TipoMesa, rotulo: string) {
   return tipo === "NUMERO" ? `Mesa ${rotulo}` : rotulo;
 }
 
+/**
+ * Divide a conta em centavos: R$ 100 ÷ 3 = R$ 33,33 para todos e 1 pessoa paga R$ 33,34,
+ * para a soma bater exatamente com o total.
+ */
+export function dividirConta(total: number, pessoas: number) {
+  const n = Math.max(1, Math.floor(pessoas));
+  const centavos = Math.round(total * 100);
+  const base = Math.floor(centavos / n);
+  return {
+    porPessoa: base / 100,
+    /** Quantas pessoas pagam 1 centavo a mais. */
+    comCentavoExtra: centavos - base * n,
+  };
+}
+
 type ItemComPreco = {
   cantidad: number | string | { toString(): string };
   precioUnit: number | string | { toString(): string };

@@ -23,6 +23,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { formatBRL } from "@/lib/format";
+import { METODOS_PAGO } from "@/lib/metodos-pago";
 import { agregarItemComanda, eliminarItemComanda, cerrarComanda } from "../actions";
 
 type Comanda = {
@@ -42,12 +44,6 @@ type Item = {
 
 type Producto = { id: string; nombre: string; precio: string; tipoUnidad: "UNIDAD" | "KG" };
 
-const METODOS_PAGO = [
-  { value: "EFECTIVO", label: "Efectivo" },
-  { value: "TARJETA_CREDITO", label: "Tarjeta de crédito" },
-  { value: "TARJETA_DEBITO", label: "Tarjeta de débito" },
-  { value: "TRANSFERENCIA", label: "Transferencia" },
-] as const;
 
 function AgregarItemForm({ comandaId, productos }: { comandaId: string; productos: Producto[] }) {
   const router = useRouter();
@@ -65,7 +61,7 @@ function AgregarItemForm({ comandaId, productos }: { comandaId: string; producto
       setNotas("");
       router.refresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al agregar ítem");
+      toast.error(err instanceof Error ? err.message : "Erro ao adicionar o item");
     } finally {
       setLoading(false);
     }
@@ -74,11 +70,11 @@ function AgregarItemForm({ comandaId, productos }: { comandaId: string; producto
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row sm:items-end">
       <div className="flex flex-1 flex-col gap-1.5">
-        <Label>Producto</Label>
+        <Label>Produto</Label>
         <Select
           value={productoId}
           onValueChange={(v) => setProductoId(v as string)}
-          items={productos.map((p) => ({ value: p.id, label: `${p.nombre} — $${Number(p.precio).toFixed(2)}` }))}
+          items={productos.map((p) => ({ value: p.id, label: `${p.nombre} — ${formatBRL(Number(p.precio))}` }))}
         >
           <SelectTrigger className="w-full">
             <SelectValue />
@@ -86,14 +82,14 @@ function AgregarItemForm({ comandaId, productos }: { comandaId: string; producto
           <SelectContent>
             {productos.map((p) => (
               <SelectItem key={p.id} value={p.id}>
-                {p.nombre} — ${Number(p.precio).toFixed(2)}
+                {p.nombre} — {formatBRL(Number(p.precio))}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="cantidad">Cantidad</Label>
+        <Label htmlFor="cantidad">Quantidade</Label>
         <Input
           id="cantidad"
           type="number"
@@ -106,11 +102,11 @@ function AgregarItemForm({ comandaId, productos }: { comandaId: string; producto
         />
       </div>
       <div className="flex flex-1 flex-col gap-1.5">
-        <Label htmlFor="notas">Notas (opcional)</Label>
-        <Input id="notas" value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="sin azúcar..." />
+        <Label htmlFor="notas">Observação (opcional)</Label>
+        <Input id="notas" value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="sem açúcar..." />
       </div>
       <Button type="submit" disabled={loading || !productoId}>
-        {loading ? "..." : "Agregar"}
+        {loading ? "..." : "Adicionar"}
       </Button>
     </form>
   );
@@ -126,11 +122,11 @@ function CerrarComandaDialog({ comandaId, total }: { comandaId: string; total: n
     setLoading(true);
     try {
       await cerrarComanda(comandaId, { metodoPago });
-      toast.success("Comanda cerrada y convertida en venta");
+      toast.success("Comanda fechada e convertida em venda");
       setOpen(false);
       router.refresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al cerrar la comanda");
+      toast.error(err instanceof Error ? err.message : "Erro ao fechar a comanda");
     } finally {
       setLoading(false);
     }
@@ -138,15 +134,15 @@ function CerrarComandaDialog({ comandaId, total }: { comandaId: string; total: n
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button />}>Cerrar comanda</DialogTrigger>
+      <DialogTrigger render={<Button />}>Fechar comanda</DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Cerrar comanda</DialogTitle>
+          <DialogTitle>Fechar comanda</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4">
-          <p className="text-lg font-semibold">Total: ${total.toFixed(2)}</p>
+          <p className="text-lg font-semibold">Total: {formatBRL(total)}</p>
           <div className="flex flex-col gap-1.5">
-            <Label>Método de pago</Label>
+            <Label>Forma de pagamento</Label>
             <Select value={metodoPago} onValueChange={(v) => setMetodoPago(v as typeof metodoPago)} items={METODOS_PAGO}>
               <SelectTrigger className="w-full">
                 <SelectValue />
@@ -163,7 +159,7 @@ function CerrarComandaDialog({ comandaId, total }: { comandaId: string; total: n
         </div>
         <DialogFooter>
           <Button onClick={handleConfirmar} disabled={loading}>
-            {loading ? "Cerrando..." : "Confirmar y cobrar"}
+            {loading ? "Fechando..." : "Confirmar e cobrar"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -189,7 +185,7 @@ export function ComandaDetail({
       await eliminarItemComanda(comanda.id, itemId);
       router.refresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al eliminar ítem");
+      toast.error(err instanceof Error ? err.message : "Erro ao remover o item");
     }
   }
 
@@ -203,18 +199,18 @@ export function ComandaDetail({
           )}
         </div>
         <Badge variant={abierta ? "default" : "outline"}>
-          {abierta ? "Abierta" : "Cerrada"}
+          {abierta ? "Aberta" : "Fechada"}
         </Badge>
       </div>
 
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Producto</TableHead>
-            <TableHead>Cantidad</TableHead>
-            <TableHead>Precio</TableHead>
-            <TableHead>Notas</TableHead>
-            {abierta && <TableHead className="text-right">Acciones</TableHead>}
+            <TableHead>Produto</TableHead>
+            <TableHead>Quantidade</TableHead>
+            <TableHead>Preço</TableHead>
+            <TableHead>Observação</TableHead>
+            {abierta && <TableHead className="text-right">Ações</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -222,12 +218,12 @@ export function ComandaDetail({
             <TableRow key={i.id}>
               <TableCell>{i.productoNombre}</TableCell>
               <TableCell>{i.cantidad}</TableCell>
-              <TableCell>${Number(i.precioUnit).toFixed(2)}</TableCell>
+              <TableCell>{formatBRL(Number(i.precioUnit))}</TableCell>
               <TableCell>{i.notas ?? "—"}</TableCell>
               {abierta && (
                 <TableCell className="text-right">
                   <Button variant="ghost" size="sm" onClick={() => handleEliminar(i.id)}>
-                    Quitar
+                    Remover
                   </Button>
                 </TableCell>
               )}
@@ -238,7 +234,7 @@ export function ComandaDetail({
 
       <div className="flex items-center justify-between border-t pt-3 text-lg font-semibold">
         <span>Total</span>
-        <span>${total.toFixed(2)}</span>
+        <span>{formatBRL(total)}</span>
       </div>
 
       {abierta && (
