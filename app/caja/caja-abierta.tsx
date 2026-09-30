@@ -24,14 +24,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import type { ResumenCaja } from "@/lib/caja";
+import { formatBRL } from "@/lib/format";
+import { METODOS_PAGO } from "@/lib/metodos-pago";
 import { registrarMovimiento, cerrarCaja } from "./actions";
 
-const METODO_PAGO_LABEL: Record<string, string> = {
-  EFECTIVO: "Efectivo",
-  TARJETA_CREDITO: "Tarjeta de crédito",
-  TARJETA_DEBITO: "Tarjeta de débito",
-  TRANSFERENCIA: "Transferencia",
-};
+const METODO_PAGO_LABEL: Record<string, string> = Object.fromEntries(METODOS_PAGO.map((m) => [m.value, m.label]));
 
 type Sesion = { id: string; fondoInicial: string; abiertaEn: string };
 
@@ -46,12 +43,12 @@ function MovimientoForm({ onDone }: { onDone: () => void }) {
     setLoading(true);
     try {
       await registrarMovimiento({ tipo, monto, descripcion: descripcion || undefined });
-      toast.success("Movimiento registrado");
+      toast.success("Movimentação registrada");
       setMonto("");
       setDescripcion("");
       onDone();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al registrar movimiento");
+      toast.error(err instanceof Error ? err.message : "Erro ao registrar a movimentação");
     } finally {
       setLoading(false);
     }
@@ -64,19 +61,19 @@ function MovimientoForm({ onDone }: { onDone: () => void }) {
         <Select
           value={tipo}
           onValueChange={(v) => setTipo(v as "SANGRIA" | "SUMINISTRO")}
-          items={{ SANGRIA: "Sangría (retiro)", SUMINISTRO: "Suministro (ingreso)" }}
+          items={{ SANGRIA: "Sangria (retirada)", SUMINISTRO: "Suprimento (entrada)" }}
         >
           <SelectTrigger className="w-40">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="SANGRIA">Sangría (retiro)</SelectItem>
-            <SelectItem value="SUMINISTRO">Suministro (ingreso)</SelectItem>
+            <SelectItem value="SANGRIA">Sangria (retirada)</SelectItem>
+            <SelectItem value="SUMINISTRO">Suprimento (entrada)</SelectItem>
           </SelectContent>
         </Select>
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="monto">Monto</Label>
+        <Label htmlFor="monto">Valor</Label>
         <Input
           id="monto"
           type="number"
@@ -89,7 +86,7 @@ function MovimientoForm({ onDone }: { onDone: () => void }) {
         />
       </div>
       <div className="flex flex-1 flex-col gap-1.5">
-        <Label htmlFor="descripcion">Descripción (opcional)</Label>
+        <Label htmlFor="descripcion">Descrição (opcional)</Label>
         <Input id="descripcion" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} />
       </div>
       <Button type="submit" disabled={loading}>
@@ -108,11 +105,11 @@ function CerrarCajaDialog({ resumen }: { resumen: ResumenCaja }) {
     setLoading(true);
     try {
       await cerrarCaja();
-      toast.success("Caja cerrada");
+      toast.success("Caixa fechado");
       setOpen(false);
       router.refresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al cerrar caja");
+      toast.error(err instanceof Error ? err.message : "Erro ao fechar o caixa");
     } finally {
       setLoading(false);
     }
@@ -120,22 +117,22 @@ function CerrarCajaDialog({ resumen }: { resumen: ResumenCaja }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="destructive" />}>Cerrar caja</DialogTrigger>
+      <DialogTrigger render={<Button variant="destructive" />}>Fechar caixa</DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Confirmar cierre de caja</DialogTitle>
+          <DialogTitle>Confirmar fechamento do caixa</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-2 text-sm">
-          <p>Ventas totales: <span className="font-medium">${resumen.totalVentas.toFixed(2)}</span></p>
-          <p>Sangrías: <span className="font-medium">-${resumen.sangrias.toFixed(2)}</span></p>
-          <p>Suministros: <span className="font-medium">+${resumen.suministros.toFixed(2)}</span></p>
+          <p>Vendas totais: <span className="font-medium">{formatBRL(resumen.totalVentas)}</span></p>
+          <p>Sangrias: <span className="font-medium">-{formatBRL(resumen.sangrias)}</span></p>
+          <p>Suprimentos: <span className="font-medium">+{formatBRL(resumen.suministros)}</span></p>
           <p className="border-t pt-2 text-base font-semibold">
-            Efectivo esperado en caja: ${resumen.efectivoEsperado.toFixed(2)}
+            Dinheiro esperado no caixa: {formatBRL(resumen.efectivoEsperado)}
           </p>
         </div>
         <DialogFooter>
           <Button variant="destructive" onClick={handleConfirmar} disabled={loading}>
-            {loading ? "Cerrando..." : "Confirmar cierre"}
+            {loading ? "Fechando..." : "Confirmar fechamento"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -150,10 +147,10 @@ export function CajaAbierta({ sesion, resumen }: { sesion: Sesion; resumen: Resu
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold">Caja abierta</h1>
+          <h1 className="text-xl font-semibold">Caixa aberto</h1>
           <p className="text-sm text-muted-foreground">
-            Desde {new Date(sesion.abiertaEn).toLocaleString("es-AR")} — fondo inicial $
-            {Number(sesion.fondoInicial).toFixed(2)}
+            Desde {new Date(sesion.abiertaEn).toLocaleString("pt-BR")} — fundo de troco{" "}
+            {formatBRL(Number(sesion.fondoInicial))}
           </p>
         </div>
         <CerrarCajaDialog resumen={resumen} />
@@ -161,56 +158,56 @@ export function CajaAbierta({ sesion, resumen }: { sesion: Sesion; resumen: Resu
 
       <Card>
         <CardHeader>
-          <CardTitle>Resumen</CardTitle>
+          <CardTitle>Resumo</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
           {resumen.ventasPorMetodo.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Todavía no hay ventas en esta caja.</p>
+            <p className="text-sm text-muted-foreground">Ainda não há vendas neste caixa.</p>
           ) : (
             <ul className="flex flex-col gap-1 text-sm">
               {resumen.ventasPorMetodo.map((v) => (
                 <li key={v.metodoPago} className="flex justify-between">
                   <span>{METODO_PAGO_LABEL[v.metodoPago] ?? v.metodoPago}</span>
-                  <span className="font-medium">${v.total.toFixed(2)} ({v.cantidad})</span>
+                  <span className="font-medium">{formatBRL(v.total)} ({v.cantidad})</span>
                 </li>
               ))}
             </ul>
           )}
           <div className="border-t pt-2 text-sm">
-            <p className="flex justify-between"><span>Total ventas</span><span>${resumen.totalVentas.toFixed(2)}</span></p>
-            <p className="flex justify-between"><span>Sangrías</span><span>-${resumen.sangrias.toFixed(2)}</span></p>
-            <p className="flex justify-between"><span>Suministros</span><span>+${resumen.suministros.toFixed(2)}</span></p>
-            <p className="flex justify-between font-semibold"><span>Efectivo esperado</span><span>${resumen.efectivoEsperado.toFixed(2)}</span></p>
+            <p className="flex justify-between"><span>Total de vendas</span><span>{formatBRL(resumen.totalVentas)}</span></p>
+            <p className="flex justify-between"><span>Sangrias</span><span>-{formatBRL(resumen.sangrias)}</span></p>
+            <p className="flex justify-between"><span>Suprimentos</span><span>+{formatBRL(resumen.suministros)}</span></p>
+            <p className="flex justify-between font-semibold"><span>Dinheiro esperado</span><span>{formatBRL(resumen.efectivoEsperado)}</span></p>
           </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Movimientos de caja</CardTitle>
+          <CardTitle>Movimentações do caixa</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <MovimientoForm onDone={() => router.refresh()} />
           {resumen.movimientos.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Sin movimientos todavía.</p>
+            <p className="text-sm text-muted-foreground">Nenhuma movimentação ainda.</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Tipo</TableHead>
-                  <TableHead>Monto</TableHead>
-                  <TableHead>Descripción</TableHead>
-                  <TableHead className="text-right">Fecha</TableHead>
+                  <TableHead>Valor</TableHead>
+                  <TableHead>Descrição</TableHead>
+                  <TableHead className="text-right">Hora</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {resumen.movimientos.map((m) => (
                   <TableRow key={m.id}>
-                    <TableCell>{m.tipo === "SANGRIA" ? "Sangría" : "Suministro"}</TableCell>
-                    <TableCell>${Number(m.monto).toFixed(2)}</TableCell>
+                    <TableCell>{m.tipo === "SANGRIA" ? "Sangria" : "Suprimento"}</TableCell>
+                    <TableCell>{formatBRL(Number(m.monto))}</TableCell>
                     <TableCell>{m.descripcion ?? "—"}</TableCell>
                     <TableCell className="text-right text-muted-foreground">
-                      {new Date(m.createdAt).toLocaleTimeString("es-AR")}
+                      {new Date(m.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                     </TableCell>
                   </TableRow>
                 ))}

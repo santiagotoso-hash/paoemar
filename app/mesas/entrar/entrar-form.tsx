@@ -16,9 +16,12 @@ type Atendente = { id: string; nombre: string };
 export function EntrarForm({
   atendentes,
   atendenteActualId,
+  voltar = "/mesas",
 }: {
   atendentes: Atendente[];
   atendenteActualId: string | null;
+  /** Tela para onde voltar depois do PIN (ex.: após inatividade). */
+  voltar?: string;
 }) {
   const router = useRouter();
   const [atendenteId, setAtendenteId] = useState<string | null>(
@@ -53,7 +56,7 @@ export function EntrarForm({
         setPin("");
         return;
       }
-      router.push("/mesas");
+      router.push(voltar);
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao entrar");

@@ -53,7 +53,8 @@ export function encerrarSessaoAtendente() {
   cookies().delete(COOKIE);
 }
 
-export type AtendenteSessao = { id: string; nombre: string };
+/** supervisor: pode modificar mesas de outros atendentes. */
+export type AtendenteSessao = { id: string; nombre: string; supervisor: boolean };
 
 export async function getAtendenteActual(): Promise<AtendenteSessao | null> {
   const valor = cookies().get(COOKIE)?.value;
@@ -69,14 +70,14 @@ export async function getAtendenteActual(): Promise<AtendenteSessao | null> {
 
   const atendente = await prisma.atendente.findUnique({
     where: { id },
-    select: { id: true, nombre: true, activo: true, pinHash: true },
+    select: { id: true, nombre: true, activo: true, pinHash: true, supervisor: true },
   });
   if (!atendente?.activo) return null;
 
   const esperada = Buffer.from(assinaturaSessao(id, emitidoEm, userId, atendente.pinHash));
   const recebida = Buffer.from(firma);
   if (esperada.length !== recebida.length || !timingSafeEqual(esperada, recebida)) return null;
-  return { id: atendente.id, nombre: atendente.nombre };
+  return { id: atendente.id, nombre: atendente.nombre, supervisor: atendente.supervisor };
 }
 
 /** Para server actions: corta se não houver atendente identificado. */
@@ -84,4 +85,23 @@ export async function requireAtendente() {
   const atendente = await getAtendenteActual();
   if (!atendente) throw new Error("Entre com seu PIN de atendente");
   return atendente;
+}
+
+/**
+ * Regra de posse: só quem abriu a mesa (ou um supervisor) pode modificá-la.
+ * Os outros atendentes só veem. Mesas antigas sem dono ficam livres.
+ */
+export function podeModificarMesa(atendente: AtendenteSessao, donoId: string | null) {
+  return !donoId || donoId === atendente.id || atendente.supervisor;
+}
+
+/** Para server actions: devolve a mensagem de erro se o atendente não pode modificar a mesa. */
+export async function conferirDonoDaMesa(atendente: AtendenteSessao, comandaId: string) {
+  const comanda = await prisma.comanda.findUnique({
+    where: { id: comandaId },
+    select: { atendenteId: true, atendente: { select: { nombre: true } } },
+  });
+  if (!comanda) return "Mesa não encontrada";
+  if (podeModificarMesa(atendente, comanda.atendenteId)) return null;
+  return `Esta mesa é de ${comanda.atendente?.nombre ?? "outro atendente"}. Você só pode visualizar.`;
 }

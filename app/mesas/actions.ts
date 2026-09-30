@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole, ROUTE_ROLES } from "@/lib/auth";
 import {
   chaveTentativasPin,
+  conferirDonoDaMesa,
   encerrarSessaoAtendente,
   iniciarSessaoAtendente,
   requireAtendente,
@@ -17,7 +18,7 @@ import { redondear2 } from "@/lib/format";
 import { nomeMesa, TAXA_SERVICO, totalItem } from "@/lib/mesas";
 import { publishVentaEvent } from "@/lib/realtime";
 import { getRedisPublisher } from "@/lib/redis";
-import { numeroRonda, rondaCocinaInclude, rondaParaEvento } from "@/lib/rondas";
+import { numeroRonda, numerosRondas, rondaCocinaInclude, rondaParaEvento } from "@/lib/rondas";
 import { bloquearComandaAbierta, crearVentaTx, publicarVenta } from "@/lib/ventas";
 
 type Resultado = { ok: true } | { ok: false; error: string };
@@ -36,29 +37,42 @@ export async function entrarAtendente(input: unknown): Promise<{ ok: true } | { 
   const { userId } = await requireRole(ROUTE_ROLES["/mesas"]);
   const data = entrarSchema.parse(input);
 
-  // Conta a tentativa antes de conferir o PIN (INCR é atômico: tentativas em paralelo também contam).
+  const res = await conferirPin(data.atendenteId, data.pin);
+  if (!res.ok) return res;
+
+  iniciarSessaoAtendente(res.atendente, userId);
+  return { ok: true };
+}
+
+/**
+ * Confere o PIN com limite de tentativas (login e autorização de supervisor).
+ * Conta a tentativa antes de conferir (INCR é atômico: tentativas em paralelo também contam).
+ */
+async function conferirPin(atendenteId: string, pin: string) {
   const redis = getRedisPublisher();
-  const chave = chaveTentativasPin(data.atendenteId);
+  const chave = chaveTentativasPin(atendenteId);
   const tentativas = await redis.incr(chave);
   if (tentativas === 1) await redis.expire(chave, JANELA_PIN_SEG);
   if (tentativas > MAX_TENTATIVAS_PIN) {
-    return { ok: false, error: "Muitas tentativas. Espere 15 minutos ou peça a um admin para trocar o PIN." };
+    return {
+      ok: false as const,
+      error: "Muitas tentativas. Espere 15 minutos ou peça a um admin para trocar o PIN.",
+    };
   }
 
-  const atendente = await prisma.atendente.findUnique({ where: { id: data.atendenteId } });
-  if (!atendente?.activo || !verificarPin(data.pin, atendente.pinHash)) {
-    return { ok: false, error: "PIN incorreto" };
+  const atendente = await prisma.atendente.findUnique({ where: { id: atendenteId } });
+  if (!atendente?.activo || !verificarPin(pin, atendente.pinHash)) {
+    return { ok: false as const, error: "PIN incorreto" };
   }
 
   await redis.del(chave);
-  iniciarSessaoAtendente(atendente, userId);
-  return { ok: true };
+  return { ok: true as const, atendente };
 }
 
 const abrirMesaSchema = z.object({
   tipo: z.enum(["NUMERO", "NOMBRE"]),
   rotulo: z.string().trim().min(1, "Informe a mesa").max(40),
-  personas: z.number().int().min(1).max(99).optional(),
+  personas: z.number().int().min(1).max(99).default(1),
 });
 
 type AbrirMesaResult =
@@ -146,6 +160,8 @@ export async function lancarRonda(comandaId: string, input: unknown): Promise<Re
   await requireRole(ROUTE_ROLES["/mesas"]);
   const atendente = await requireAtendente();
   const { clave, itens } = lancarSchema.parse(input);
+  const semPermissao = await conferirDonoDaMesa(atendente, comandaId);
+  if (semPermissao) return { ok: false, error: semPermissao };
 
   const comanda = await prisma.comanda.findUnique({ where: { id: comandaId } });
   if (!comanda || comanda.estado !== "ABIERTA") return { ok: false, error: "Esta mesa não está aberta" };
@@ -220,9 +236,151 @@ export async function lancarRonda(comandaId: string, input: unknown): Promise<Re
 
 export async function alternarServico(comandaId: string, servicio: boolean) {
   await requireRole(ROUTE_ROLES["/mesas"]);
-  await requireAtendente();
+  const atendente = await requireAtendente();
+  const semPermissao = await conferirDonoDaMesa(atendente, comandaId);
+  if (semPermissao) throw new Error(semPermissao);
   await prisma.comanda.update({ where: { id: comandaId, estado: "ABIERTA" }, data: { servicio } });
   revalidatePath(`/mesas/${comandaId}`);
+}
+
+/** O atendente pode ajustar quantas pessoas estão na mesa a qualquer momento. */
+export async function alterarPessoas(comandaId: string, personas: number) {
+  await requireRole(ROUTE_ROLES["/mesas"]);
+  const atendente = await requireAtendente();
+  const semPermissao = await conferirDonoDaMesa(atendente, comandaId);
+  if (semPermissao) throw new Error(semPermissao);
+  const valor = z.number().int().min(1).max(99).parse(personas);
+  await prisma.comanda.update({ where: { id: comandaId, estado: "ABIERTA" }, data: { personas: valor } });
+  revalidatePath("/mesas");
+  revalidatePath(`/mesas/${comandaId}`);
+}
+
+const cancelarItemSchema = z.object({
+  itemId: z.string().min(1),
+  cantidad: z.number().int().min(1).max(99),
+  motivo: z.string().trim().min(5, "Explique o motivo (mínimo 5 letras)").max(300),
+  supervisorId: z.string().min(1, "Escolha o supervisor"),
+  pin: z.string().regex(/^\d{4}$/, "O PIN tem 4 dígitos"),
+});
+
+/**
+ * Cancela (toda ou parte da quantidade de) um item já lançado, antes de fechar a conta.
+ * Exige PIN de um supervisor e um motivo; tudo fica registrado em CancelamentoItem.
+ */
+export async function cancelarItem(comandaId: string, input: unknown): Promise<Resultado> {
+  await requireRole(ROUTE_ROLES["/mesas"]);
+  const atendente = await requireAtendente();
+  const data = cancelarItemSchema.parse(input);
+  const semPermissao = await conferirDonoDaMesa(atendente, comandaId);
+  if (semPermissao) return { ok: false, error: semPermissao };
+
+  const supervisor = await prisma.atendente.findUnique({
+    where: { id: data.supervisorId },
+    select: { supervisor: true, activo: true },
+  });
+  if (!supervisor?.activo || !supervisor.supervisor) {
+    return { ok: false, error: "Só um supervisor pode autorizar o cancelamento" };
+  }
+  const pin = await conferirPin(data.supervisorId, data.pin);
+  if (!pin.ok) return pin;
+
+  const res = await prisma.$transaction(async (tx) => {
+    // Trava a comanda: não deixa cancelar ao mesmo tempo que alguém fecha a conta.
+    if (!(await bloquearComandaAbierta(tx, comandaId))) return { error: "Esta mesa não está aberta" };
+
+    const item = await tx.comandaItem.findUnique({
+      where: { id: data.itemId },
+      include: { producto: { select: { nombre: true } }, adicionais: true },
+    });
+    if (!item || item.comandaId !== comandaId) return { error: "Item não encontrado nesta mesa" };
+    const qtdAtual = Number(item.cantidad);
+    if (data.cantidad > qtdAtual) return { error: `Só há ${qtdAtual} deste item` };
+
+    const valor = redondear2(totalItem({ ...item, cantidad: data.cantidad }));
+    const detalhe = [item.opcion, ...item.adicionais.map((a) => `+ ${a.nombre}`), item.notas && `obs: ${item.notas}`]
+      .filter(Boolean)
+      .join(" · ");
+
+    await tx.cancelamentoItem.create({
+      data: {
+        comandaId,
+        rondaId: item.rondaId,
+        productoId: item.productoId,
+        productoNombre: item.producto.nombre,
+        detalhe: detalhe || null,
+        cantidad: data.cantidad,
+        valor,
+        motivo: data.motivo,
+        supervisorId: data.supervisorId,
+        atendenteId: atendente.id,
+      },
+    });
+
+    if (data.cantidad === qtdAtual) await tx.comandaItem.delete({ where: { id: item.id } });
+    else await tx.comandaItem.update({ where: { id: item.id }, data: { cantidad: { decrement: data.cantidad } } });
+
+    return { rondaId: item.rondaId };
+  });
+  if ("error" in res) return { ok: false, error: res.error ?? "Erro ao cancelar" };
+
+  // Atualiza o card da rodada na cozinha (rodada que ficou vazia sai do quadro).
+  if (res.rondaId) {
+    const ronda = await prisma.ronda.findUnique({ where: { id: res.rondaId }, include: rondaCocinaInclude });
+    if (ronda) {
+      const evento = rondaParaEvento(ronda, await numeroRonda(ronda));
+      await publishVentaEvent(ronda.items.length === 0 ? { ...evento, estado: "ENTREGADO" } : evento);
+    }
+  }
+
+  revalidatePath("/mesas");
+  revalidatePath(`/mesas/${comandaId}`);
+  revalidatePath("/admin/cancelamentos");
+  return { ok: true };
+}
+
+const liberarMesaSchema = z.object({
+  supervisorId: z.string().optional(),
+  pin: z.string().optional(),
+});
+
+/**
+ * Fecha uma mesa sem itens, sem gerar venda (aberta por engano ou com tudo cancelado).
+ * Se a mesa teve itens cancelados, exige PIN de supervisor.
+ */
+export async function liberarMesa(comandaId: string, input: unknown): Promise<Resultado> {
+  await requireRole(ROUTE_ROLES["/mesas"]);
+  const atendente = await requireAtendente();
+  const data = liberarMesaSchema.parse(input);
+  const semPermissao = await conferirDonoDaMesa(atendente, comandaId);
+  if (semPermissao) return { ok: false, error: semPermissao };
+
+  const teveCancelamentos = (await prisma.cancelamentoItem.count({ where: { comandaId } })) > 0;
+  if (teveCancelamentos) {
+    if (!data.supervisorId || !data.pin) return { ok: false, error: "Precisa da autorização de um supervisor" };
+    const supervisor = await prisma.atendente.findUnique({
+      where: { id: data.supervisorId },
+      select: { supervisor: true, activo: true },
+    });
+    if (!supervisor?.activo || !supervisor.supervisor) {
+      return { ok: false, error: "Só um supervisor pode autorizar" };
+    }
+    const pin = await conferirPin(data.supervisorId, data.pin);
+    if (!pin.ok) return pin;
+  }
+
+  const res = await prisma.$transaction(async (tx) => {
+    if (!(await bloquearComandaAbierta(tx, comandaId))) return "Esta mesa não está aberta";
+    if ((await tx.comandaItem.count({ where: { comandaId } })) > 0) {
+      return "A mesa tem itens lançados: feche a conta ou cancele os itens";
+    }
+    await tx.comanda.update({ where: { id: comandaId }, data: { estado: "CERRADA", cerradaEn: new Date() } });
+    return null;
+  });
+  if (res) return { ok: false, error: res };
+
+  revalidatePath("/mesas");
+  revalidatePath(`/mesas/${comandaId}`);
+  return { ok: true };
 }
 
 const fecharContaSchema = z.object({
@@ -242,6 +400,8 @@ export async function fecharConta(comandaId: string, input: unknown): Promise<Re
   const { userId } = await requireRole(ROUTE_ROLES["/mesas"]);
   const atendente = await requireAtendente();
   const data = fecharContaSchema.parse(input);
+  const semPermissao = await conferirDonoDaMesa(atendente, comandaId);
+  if (semPermissao) return { ok: false, error: semPermissao };
 
   const caja =
     (await prisma.cajaSesion.findFirst({ where: { operadorId: userId, abierta: true } })) ??
@@ -325,6 +485,47 @@ export async function fecharConta(comandaId: string, input: unknown): Promise<Re
   revalidatePath("/mesas");
   revalidatePath(`/mesas/${comandaId}`);
   return { ok: true };
+}
+
+export type RondaEmAndamento = {
+  id: string;
+  comandaId: string;
+  pedido: string;
+  estado: "RECIBIDO" | "EN_PREPARACION" | "LISTO";
+  estadoDesde: string;
+};
+
+/**
+ * Rodadas ainda não entregues das mesas do atendente logado (para o aviso de pedido parado).
+ * Só as mesas dele: o aviso é para o dono da mesa.
+ */
+export async function rondasEmAndamento(): Promise<RondaEmAndamento[]> {
+  await requireRole(ROUTE_ROLES["/mesas"]);
+  const atendente = await requireAtendente();
+
+  const rondas = await prisma.ronda.findMany({
+    where: {
+      estado: { in: ["RECIBIDO", "EN_PREPARACION", "LISTO"] },
+      items: { some: {} },
+      comanda: { estado: "ABIERTA", atendenteId: atendente.id },
+    },
+    select: {
+      id: true,
+      comandaId: true,
+      estado: true,
+      estadoDesde: true,
+      comanda: { select: { codigo: true, tipo: true } },
+    },
+  });
+  const numeros = await numerosRondas(rondas);
+
+  return rondas.map((r) => ({
+    id: r.id,
+    comandaId: r.comandaId,
+    pedido: `${nomeMesa(r.comanda.tipo, r.comanda.codigo)} · Rodada ${numeros.get(r.id) ?? 1}`,
+    estado: r.estado as RondaEmAndamento["estado"],
+    estadoDesde: r.estadoDesde.toISOString(),
+  }));
 }
 
 export async function sairAtendente() {

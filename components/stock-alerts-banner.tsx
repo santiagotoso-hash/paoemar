@@ -29,7 +29,7 @@ export function StockAlertsBanner({
   return (
     <Alert variant="destructive">
       <AlertTriangleIcon />
-      <AlertTitle>Stock bajo en {alertas.length} producto(s)</AlertTitle>
+      <AlertTitle>Estoque baixo em {alertas.length} produto(s)</AlertTitle>
       <AlertDescription>
         <ul className="list-inside list-disc">
           {alertas.map((a) => (

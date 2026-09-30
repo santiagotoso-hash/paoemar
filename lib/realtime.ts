@@ -51,6 +51,8 @@ export type VentaEvent = {
   origen: "MOSTRADOR" | "COMANDA" | "MESA";
   estado: "RECIBIDO" | "EN_PREPARACION" | "LISTO" | "ENTREGADO";
   createdAt: string;
+  /** Só rodadas de mesa: quando o estado mudou (para o aviso de pedido parado). */
+  estadoDesde?: string;
   items: VentaEventItem[];
 };
 

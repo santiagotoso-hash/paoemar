@@ -33,7 +33,7 @@ export function NuevaComandaDialog() {
       setNombreCliente("");
       router.push(`/comandas/${id}`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al crear la comanda");
+      toast.error(err instanceof Error ? err.message : "Erro ao criar a comanda");
     } finally {
       setLoading(false);
     }
@@ -41,10 +41,10 @@ export function NuevaComandaDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button />}>Nueva comanda</DialogTrigger>
+      <DialogTrigger render={<Button />}>Nova comanda</DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Nueva comanda</DialogTitle>
+          <DialogTitle>Nova comanda</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
@@ -68,7 +68,7 @@ export function NuevaComandaDialog() {
           </div>
           <DialogFooter>
             <Button type="submit" disabled={loading}>
-              {loading ? "Creando..." : "Crear y abrir"}
+              {loading ? "Criando..." : "Criar e abrir"}
             </Button>
           </DialogFooter>
         </form>

@@ -19,10 +19,10 @@ export function AbrirCajaForm() {
     setLoading(true);
     try {
       await abrirCaja({ fondoInicial });
-      toast.success("Caja abierta");
+      toast.success("Caixa aberto");
       router.refresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al abrir caja");
+      toast.error(err instanceof Error ? err.message : "Erro ao abrir o caixa");
     } finally {
       setLoading(false);
     }
@@ -31,12 +31,12 @@ export function AbrirCajaForm() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Abrir caja</CardTitle>
+        <CardTitle>Abrir caixa</CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="fondoInicial">Fondo inicial</Label>
+            <Label htmlFor="fondoInicial">Fundo de troco</Label>
             <Input
               id="fondoInicial"
               type="number"
@@ -49,7 +49,7 @@ export function AbrirCajaForm() {
             />
           </div>
           <Button type="submit" disabled={loading}>
-            {loading ? "Abriendo..." : "Abrir caja"}
+            {loading ? "Abrindo..." : "Abrir caixa"}
           </Button>
         </form>
       </CardContent>

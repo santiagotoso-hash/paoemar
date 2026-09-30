@@ -5,10 +5,11 @@ import { StockAlertsBanner } from "@/components/stock-alerts-banner";
 import { getStockBajo } from "@/lib/realtime";
 
 const TABS = [
-  { href: "/admin/productos", label: "Productos" },
-  { href: "/admin/categorias", label: "Categorías" },
+  { href: "/admin/productos", label: "Produtos" },
+  { href: "/admin/categorias", label: "Categorias" },
   { href: "/admin/atendentes", label: "Atendentes" },
-  { href: "/admin/reportes", label: "Reportes" },
+  { href: "/admin/cancelamentos", label: "Cancelamentos" },
+  { href: "/admin/reportes", label: "Relatórios" },
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

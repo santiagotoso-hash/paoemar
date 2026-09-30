@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { formatBRL } from "@/lib/format";
 import { METODOS_PAGO } from "@/lib/metodos-pago";
 import { confirmarVentaMostrador } from "./actions";
 
@@ -82,7 +83,7 @@ export function PosManager({
         metodoPago,
         nombreCliente: nombreCliente || undefined,
       });
-      toast.success(`Venda ${result.codigo} confirmada — R$${Number(result.total).toFixed(2)}`);
+      toast.success(`Venda ${result.codigo} confirmada — ${formatBRL(Number(result.total))}`);
       setCart({});
       setNombreCliente("");
       router.refresh();
@@ -123,7 +124,7 @@ export function PosManager({
                       <CardContent className="flex flex-col gap-1 p-3">
                         <span className="text-sm font-medium">{p.nombre}</span>
                         <span className="text-sm text-muted-foreground">
-                          ${Number(p.precio).toFixed(2)} {p.tipoUnidad === "KG" ? "/ kg" : ""}
+                          {formatBRL(Number(p.precio))} {p.tipoUnidad === "KG" ? "/ kg" : ""}
                         </span>
                       </CardContent>
                     </Card>
@@ -145,7 +146,7 @@ export function PosManager({
               <li key={item.producto.id} className="flex items-center justify-between gap-2">
                 <div className="flex-1">
                   <p className="text-sm font-medium">{item.producto.nombre}</p>
-                  <p className="text-xs text-muted-foreground">${item.subtotal.toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground">{formatBRL(item.subtotal)}</p>
                 </div>
                 <Input
                   type="number"
@@ -188,7 +189,7 @@ export function PosManager({
 
         <div className="flex items-center justify-between border-t pt-3 text-lg font-semibold">
           <span>Total</span>
-          <span>${total.toFixed(2)}</span>
+          <span>{formatBRL(total)}</span>
         </div>
 
         <Button disabled={cartItems.length === 0 || loading} onClick={handleConfirmar}>

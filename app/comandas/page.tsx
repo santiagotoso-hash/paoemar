@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { formatBRL } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
 import { NuevaComandaDialog } from "./nueva-comanda-dialog";
 
@@ -14,12 +15,12 @@ export default async function ComandasPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Comandas abiertas</h1>
+        <h1 className="text-xl font-semibold">Comandas abertas</h1>
         <NuevaComandaDialog />
       </div>
 
       {comandas.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No hay comandas abiertas.</p>
+        <p className="text-sm text-muted-foreground">Não há comandas abertas.</p>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {comandas.map((c) => {
@@ -33,7 +34,7 @@ export default async function ComandasPage() {
                       <span className="text-sm text-muted-foreground">{c.nombreCliente}</span>
                     )}
                     <span className="text-sm text-muted-foreground">
-                      {c.items.length} ítem(s) — ${total.toFixed(2)}
+                      {c.items.length} item(ns) — {formatBRL(total)}
                     </span>
                   </CardContent>
                 </Card>

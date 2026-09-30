@@ -23,6 +23,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { formatBRL } from "@/lib/format";
 import { crearProducto, editarProducto, toggleActivoProducto } from "./actions";
 
 type Categoria = { id: string; nombre: string };
@@ -66,14 +67,14 @@ function ProductoForm({
     try {
       if (producto) {
         await editarProducto(producto.id, payload);
-        toast.success("Producto actualizado");
+        toast.success("Produto atualizado");
       } else {
         await crearProducto(payload);
-        toast.success("Producto creado");
+        toast.success("Produto criado");
       }
       onDone();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al guardar");
+      toast.error(err instanceof Error ? err.message : "Erro ao salvar");
     } finally {
       setLoading(false);
     }
@@ -87,21 +88,21 @@ function ProductoForm({
           <Input id="codigo" value={codigo} onChange={(e) => setCodigo(e.target.value)} required />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="nombre">Nombre</Label>
+          <Label htmlFor="nombre">Nome</Label>
           <Input id="nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} required />
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1.5">
-          <Label>Categoría</Label>
+          <Label>Categoria</Label>
           <Select
             value={categoriaId}
             onValueChange={(v) => setCategoriaId(v as string)}
             items={categorias.map((c) => ({ value: c.id, label: c.nombre }))}
           >
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Elegí una categoría" />
+              <SelectValue placeholder="Escolha uma categoria" />
             </SelectTrigger>
             <SelectContent>
               {categorias.map((c) => (
@@ -113,17 +114,17 @@ function ProductoForm({
           </Select>
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label>Tipo de unidad</Label>
+          <Label>Tipo de unidade</Label>
           <Select
             value={tipoUnidad}
             onValueChange={(v) => setTipoUnidad(v as "UNIDAD" | "KG")}
-            items={{ UNIDAD: "Unidad", KG: "Kg" }}
+            items={{ UNIDAD: "Unidade", KG: "Kg" }}
           >
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="UNIDAD">Unidad</SelectItem>
+              <SelectItem value="UNIDAD">Unidade</SelectItem>
               <SelectItem value="KG">Kg</SelectItem>
             </SelectContent>
           </Select>
@@ -132,27 +133,27 @@ function ProductoForm({
 
       <div className="grid grid-cols-3 gap-4">
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="precio">Precio</Label>
+          <Label htmlFor="precio">Preço</Label>
           <Input id="precio" type="number" step="0.01" min="0" value={precio} onChange={(e) => setPrecio(e.target.value)} required />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="stockActual">Stock actual</Label>
+          <Label htmlFor="stockActual">Estoque atual</Label>
           <Input id="stockActual" type="number" step="0.01" min="0" value={stockActual} onChange={(e) => setStockActual(e.target.value)} required />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="stockMinimo">Stock mínimo</Label>
+          <Label htmlFor="stockMinimo">Estoque mínimo</Label>
           <Input id="stockMinimo" type="number" step="0.01" min="0" value={stockMinimo} onChange={(e) => setStockMinimo(e.target.value)} required />
         </div>
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="descripcion">Descripción (opcional)</Label>
+        <Label htmlFor="descripcion">Descrição (opcional)</Label>
         <Textarea id="descripcion" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} />
       </div>
 
       <DialogFooter>
         <Button type="submit" disabled={loading}>
-          {loading ? "Guardando..." : "Guardar"}
+          {loading ? "Salvando..." : "Salvar"}
         </Button>
       </DialogFooter>
     </form>
@@ -172,9 +173,9 @@ export function ProductosManager({
   async function handleToggle(p: Producto) {
     try {
       await toggleActivoProducto(p.id, !p.activo);
-      toast.success(p.activo ? "Producto desactivado" : "Producto activado");
+      toast.success(p.activo ? "Produto desativado" : "Produto ativado");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error");
+      toast.error(err instanceof Error ? err.message : "Erro");
     }
   }
 
@@ -184,10 +185,10 @@ export function ProductosManager({
     <div className="flex flex-col gap-4">
       <div className="flex justify-end">
         <Dialog open={openNuevo} onOpenChange={setOpenNuevo}>
-          <DialogTrigger render={<Button />}>Nuevo producto</DialogTrigger>
+          <DialogTrigger render={<Button />}>Novo produto</DialogTrigger>
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
-              <DialogTitle>Nuevo producto</DialogTitle>
+              <DialogTitle>Novo produto</DialogTitle>
             </DialogHeader>
             <ProductoForm categorias={categorias} onDone={() => setOpenNuevo(false)} />
           </DialogContent>
@@ -198,12 +199,12 @@ export function ProductosManager({
         <TableHeader>
           <TableRow>
             <TableHead>Código</TableHead>
-            <TableHead>Nombre</TableHead>
-            <TableHead>Categoría</TableHead>
-            <TableHead>Precio</TableHead>
-            <TableHead>Stock</TableHead>
-            <TableHead>Estado</TableHead>
-            <TableHead className="text-right">Acciones</TableHead>
+            <TableHead>Nome</TableHead>
+            <TableHead>Categoria</TableHead>
+            <TableHead>Preço</TableHead>
+            <TableHead>Estoque</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="text-right">Ações</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -214,15 +215,15 @@ export function ProductosManager({
                 <TableCell>{p.codigo}</TableCell>
                 <TableCell>{p.nombre}</TableCell>
                 <TableCell>{categoriaNombre(p.categoriaId)}</TableCell>
-                <TableCell>${Number(p.precio).toFixed(2)}</TableCell>
+                <TableCell>{formatBRL(Number(p.precio))}</TableCell>
                 <TableCell>
                   <span className={bajoStock ? "font-medium text-destructive" : ""}>
-                    {p.stockActual} {p.tipoUnidad === "KG" ? "kg" : "u."}
+                    {p.stockActual} {p.tipoUnidad === "KG" ? "kg" : "un."}
                   </span>
                 </TableCell>
                 <TableCell>
                   <Badge variant={p.activo ? "default" : "outline"}>
-                    {p.activo ? "Activo" : "Inactivo"}
+                    {p.activo ? "Ativo" : "Inativo"}
                   </Badge>
                 </TableCell>
                 <TableCell className="flex justify-end gap-2">
@@ -230,7 +231,7 @@ export function ProductosManager({
                     Editar
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => handleToggle(p)}>
-                    {p.activo ? "Desactivar" : "Activar"}
+                    {p.activo ? "Desativar" : "Ativar"}
                   </Button>
                 </TableCell>
               </TableRow>
@@ -242,7 +243,7 @@ export function ProductosManager({
       <Dialog open={!!editando} onOpenChange={(open) => !open && setEditando(null)}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Editar producto</DialogTitle>
+            <DialogTitle>Editar produto</DialogTitle>
           </DialogHeader>
           {editando && (
             <ProductoForm producto={editando} categorias={categorias} onDone={() => setEditando(null)} />
