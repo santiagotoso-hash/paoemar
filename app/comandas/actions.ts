@@ -1,7 +1,6 @@
 "use server";
 
 import { z } from "zod";
-import { camposPagamento, validarPagamento } from "@/lib/metodos-pago";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireRole, ROUTE_ROLES } from "@/lib/auth";
@@ -68,7 +67,9 @@ export async function eliminarItemComanda(comandaId: string, itemId: string) {
   revalidatePath(`/comandas/${comandaId}`);
 }
 
-const cerrarComandaSchema = z.object({ ...camposPagamento }).superRefine(validarPagamento);
+const cerrarComandaSchema = z.object({
+  metodoPago: z.enum(["EFECTIVO", "TARJETA_CREDITO", "TARJETA_DEBITO", "TRANSFERENCIA"]),
+});
 
 export async function cerrarComanda(comandaId: string, input: unknown) {
   const { userId } = await requireRole(ROUTE_ROLES["/comandas"]);
@@ -96,7 +97,6 @@ export async function cerrarComanda(comandaId: string, input: unknown) {
         origen: "COMANDA",
         operadorId: userId,
         metodoPago: data.metodoPago,
-        bandeira: data.bandeira,
         nombreCliente: comanda.nombreCliente ?? undefined,
         comandaId: comanda.id,
         // Misma regla que /mesas: si la comanda tiene servicio, se cobra igual en las dos pantallas.

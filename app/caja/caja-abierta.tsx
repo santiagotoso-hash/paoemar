@@ -25,9 +25,10 @@ import {
 } from "@/components/ui/dialog";
 import type { ResumenCaja } from "@/lib/caja";
 import { formatBRL } from "@/lib/format";
-import { METODO_PAGO_LABEL } from "@/lib/metodos-pago";
+import { METODOS_PAGO } from "@/lib/metodos-pago";
 import { registrarMovimiento, cerrarCaja } from "./actions";
 
+const METODO_PAGO_LABEL: Record<string, string> = Object.fromEntries(METODOS_PAGO.map((m) => [m.value, m.label]));
 
 type Sesion = { id: string; fondoInicial: string; abiertaEn: string };
 

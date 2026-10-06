@@ -24,8 +24,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { formatBRL } from "@/lib/format";
-import type { BandeiraValue, MetodoPagoValue } from "@/lib/metodos-pago";
-import { FormaPagamento, pagamentoCompleto } from "@/components/forma-pagamento";
+import { METODOS_PAGO } from "@/lib/metodos-pago";
 import { agregarItemComanda, eliminarItemComanda, cerrarComanda } from "../actions";
 
 type Comanda = {
@@ -116,14 +115,13 @@ function AgregarItemForm({ comandaId, productos }: { comandaId: string; producto
 function CerrarComandaDialog({ comandaId, total }: { comandaId: string; total: number }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [metodoPago, setMetodoPago] = useState<MetodoPagoValue>("EFECTIVO");
-  const [bandeira, setBandeira] = useState<BandeiraValue | null>(null);
+  const [metodoPago, setMetodoPago] = useState<(typeof METODOS_PAGO)[number]["value"]>("EFECTIVO");
   const [loading, setLoading] = useState(false);
 
   async function handleConfirmar() {
     setLoading(true);
     try {
-      await cerrarComanda(comandaId, { metodoPago, bandeira });
+      await cerrarComanda(comandaId, { metodoPago });
       toast.success("Comanda fechada e convertida em venda");
       setOpen(false);
       router.refresh();
@@ -145,11 +143,22 @@ function CerrarComandaDialog({ comandaId, total }: { comandaId: string; total: n
           <p className="text-lg font-semibold">Total: {formatBRL(total)}</p>
           <div className="flex flex-col gap-1.5">
             <Label>Forma de pagamento</Label>
-            <FormaPagamento metodo={metodoPago} onMetodo={setMetodoPago} bandeira={bandeira} onBandeira={setBandeira} />
+            <Select value={metodoPago} onValueChange={(v) => setMetodoPago(v as typeof metodoPago)} items={METODOS_PAGO}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {METODOS_PAGO.map((m) => (
+                  <SelectItem key={m.value} value={m.value}>
+                    {m.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
         <DialogFooter>
-          <Button onClick={handleConfirmar} disabled={loading || !pagamentoCompleto(metodoPago, bandeira)}>
+          <Button onClick={handleConfirmar} disabled={loading}>
             {loading ? "Fechando..." : "Confirmar e cobrar"}
           </Button>
         </DialogFooter>
