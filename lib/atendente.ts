@@ -30,6 +30,14 @@ function assinaturaSessao(atendenteId: string, emitidoEm: string, clerkUserId: s
 }
 
 /** Contador de tentativas de PIN no Redis (trocar o PIN no admin zera o bloqueio). */
+/**
+ * Contador separado para o PIN de supervisor usado ao autorizar (cancelamento, liberar mesa),
+ * por quem pede: errar a autorização não bloqueia o login do supervisor nem os outros atendentes.
+ */
+export function chaveTentativasAutorizacao(supervisorId: string, solicitanteId: string) {
+  return `pin-autorizacao:${supervisorId}:${solicitanteId}`;
+}
+
 export function chaveTentativasPin(atendenteId: string) {
   return `pin-tentativas:${atendenteId}`;
 }

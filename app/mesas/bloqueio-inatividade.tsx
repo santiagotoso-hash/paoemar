@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { AVISO_SEG, INATIVIDADE_MIN } from "@/lib/inatividade";
+import { AVISO_SEG, INATIVIDADE_MIN, lerUltimaAtividade, registrarAtividade } from "@/lib/inatividade";
 import { liberarSaidaDaPagina } from "./guarda-saida-mesa";
 
 const LIMITE_MS = INATIVIDADE_MIN * 60 * 1000;
@@ -15,6 +15,7 @@ const EVENTOS = ["pointerdown", "keydown", "touchstart", "wheel"] as const;
  */
 export function BloqueioInatividade({ atendente }: { atendente: { id: string; nombre: string } }) {
   const ultimaAtividade = useRef(Date.now());
+  const ultimoRegistro = useRef(0);
   const encerrando = useRef(false);
   const [restanteSeg, setRestanteSeg] = useState<number | null>(null);
 
@@ -40,6 +41,9 @@ export function BloqueioInatividade({ atendente }: { atendente: { id: string; no
   }, [atendente.id]);
 
   const verificar = useCallback(() => {
+    // O relógio salvo no aparelho vale para todas as abas (e sobrevive a recarregar a página).
+    const salvo = lerUltimaAtividade(atendente.id);
+    if (salvo) ultimaAtividade.current = Math.max(ultimaAtividade.current, salvo);
     const restante = LIMITE_MS - (Date.now() - ultimaAtividade.current);
     if (restante <= 0) {
       setRestanteSeg(null);
@@ -49,13 +53,23 @@ export function BloqueioInatividade({ atendente }: { atendente: { id: string; no
     } else {
       setRestanteSeg(null);
     }
-  }, [encerrar]);
+  }, [encerrar, atendente.id]);
 
   useEffect(() => {
+    // Ao montar (inclusive depois de recarregar), parte da última atividade salva, não de agora.
+    const salvo = lerUltimaAtividade(atendente.id);
+    if (salvo) ultimaAtividade.current = salvo;
+    verificar();
+
     function atividade() {
       if (encerrando.current) return;
-      ultimaAtividade.current = Date.now();
+      const agora = Date.now();
+      ultimaAtividade.current = agora;
       setRestanteSeg(null);
+      if (agora - ultimoRegistro.current > 5_000) {
+        ultimoRegistro.current = agora;
+        registrarAtividade(atendente.id, agora);
+      }
     }
     function aoVoltar() {
       if (document.visibilityState === "visible") verificar();
@@ -69,7 +83,7 @@ export function BloqueioInatividade({ atendente }: { atendente: { id: string; no
       document.removeEventListener("visibilitychange", aoVoltar);
       clearInterval(t);
     };
-  }, [verificar]);
+  }, [verificar, atendente.id]);
 
   if (restanteSeg === null) return null;
 
