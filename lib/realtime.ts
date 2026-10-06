@@ -43,6 +43,14 @@ export type VentaEventItem = {
   notas: string | null;
 };
 
+/** Linha do tempo de um pedido na cozinha. */
+export type TemposPedido = {
+  lancado: string;
+  emPreparo?: string | null;
+  pronto?: string | null;
+  entregue?: string | null;
+};
+
 export type VentaEvent = {
   id: string;
   codigo: string;
@@ -53,6 +61,8 @@ export type VentaEvent = {
   createdAt: string;
   /** Só rodadas de mesa: quando o estado mudou (para o aviso de pedido parado). */
   estadoDesde?: string;
+  /** Horários de cada etapa (ISO). Pedidos antigos/do balcão podem vir só com `lancado`. */
+  tempos?: TemposPedido;
   items: VentaEventItem[];
 };
 

@@ -129,6 +129,10 @@ model Ronda {
   estado      EstadoVenta   @default(RECIBIDO)
   /// Quando o estado mudou pela última vez (para detectar pedido parado).
   estadoDesde DateTime      @default(now())
+  /// Linha do tempo na cozinha (lançado/recebido = creadaEn).
+  emPreparoEm DateTime?
+  prontoEm    DateTime?
+  entregueEm  DateTime?
   comanda     Comanda       @relation(fields: [comandaId], references: [id])
   atendente   Atendente     @relation(fields: [atendenteId], references: [id])
   items       ComandaItem[]

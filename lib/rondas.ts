@@ -41,6 +41,13 @@ export function rondaParaEvento(ronda: RondaCocina, numero: number): VentaEvent 
     estado: ronda.estado,
     createdAt: ronda.creadaEn.toISOString(),
     estadoDesde: ronda.estadoDesde.toISOString(),
+    tempos: {
+      lancado: ronda.creadaEn.toISOString(),
+      // `?.`: se o servidor estiver com o Prisma Client antigo em memória, não quebra.
+      emPreparo: ronda.emPreparoEm?.toISOString() ?? null,
+      pronto: ronda.prontoEm?.toISOString() ?? null,
+      entregue: ronda.entregueEm?.toISOString() ?? null,
+    },
     items: ronda.items.map((i) => ({
       productoNombre: i.producto.nombre,
       cantidad: i.cantidad.toString(),

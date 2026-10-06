@@ -8,6 +8,13 @@ import { numeroRonda, rondaCocinaInclude, rondaParaEvento } from "@/lib/rondas";
 
 const ORDEN_ESTADOS = ["RECIBIDO", "EN_PREPARACION", "LISTO", "ENTREGADO"] as const;
 
+/** Campo da linha do tempo da rodada gravado ao entrar em cada estado. */
+const CAMPO_TEMPO = {
+  EN_PREPARACION: "emPreparoEm",
+  LISTO: "prontoEm",
+  ENTREGADO: "entregueEm",
+} as const;
+
 export async function avanzarEstadoVenta(ventaId: string) {
   await requireRole(ROUTE_ROLES["/cocina"]);
 
@@ -32,6 +39,10 @@ export async function avanzarEstadoVenta(ventaId: string) {
     origen: actualizada.origen,
     estado: actualizada.estado,
     createdAt: actualizada.createdAt.toISOString(),
+    tempos: {
+      lancado: actualizada.createdAt.toISOString(),
+      entregue: actualizada.estado === "ENTREGADO" ? actualizada.updatedAt.toISOString() : null,
+    },
     items: actualizada.items.map((i) => ({
       productoNombre: i.producto.nombre,
       cantidad: i.cantidad.toString(),
@@ -56,7 +67,11 @@ export async function avanzarEstadoRonda(rondaId: string) {
 
   const actualizada = await prisma.ronda.update({
     where: { id: rondaId },
-    data: { estado: ORDEN_ESTADOS[idx + 1], estadoDesde: new Date() },
+    data: (() => {
+      const novo = ORDEN_ESTADOS[idx + 1] as keyof typeof CAMPO_TEMPO;
+      const agora = new Date();
+      return { estado: novo, estadoDesde: agora, [CAMPO_TEMPO[novo]]: agora };
+    })(),
     include: rondaCocinaInclude,
   });
 
