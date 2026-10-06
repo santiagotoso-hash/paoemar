@@ -1,6 +1,7 @@
-import type { MetodoPago, OrigenVenta, Prisma } from "@prisma/client";
+import type { BandeiraCartao, MetodoPago, OrigenVenta, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { redondear2 } from "@/lib/format";
+import { bandeiraParaGravar } from "@/lib/metodos-pago";
 import { publishStockAlerts, publishVentaEvent } from "@/lib/realtime";
 
 export type VentaItemInput = {
@@ -18,6 +19,8 @@ export type CrearVentaParams = {
   origen: OrigenVenta;
   operadorId: string;
   metodoPago: MetodoPago;
+  /** Bandeira do cartão (só crédito/débito; nos outros métodos é ignorada). */
+  bandeira?: BandeiraCartao | null;
   nombreCliente?: string;
   comandaId?: string;
   /** Taxa de serviço, separada del subtotal. */
@@ -106,6 +109,7 @@ export async function crearVentaTx(tx: Prisma.TransactionClient, params: CrearVe
       servicio,
       total: redondear2(subtotal + servicio),
       metodoPago,
+      bandeira: bandeiraParaGravar(metodoPago, params.bandeira),
       ...(enviarCocina ? {} : { estado: "ENTREGADO" as const }),
       cajaSesionId: cajaSesion.id,
       operadorId,

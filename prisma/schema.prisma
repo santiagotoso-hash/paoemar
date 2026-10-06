@@ -163,25 +163,26 @@ model ComandaItemAdicional {
 }
 
 model Venta {
-  id            String      @id @default(cuid())
-  codigo        String      @unique
-  comandaId     String?     @unique
+  id            String          @id @default(cuid())
+  codigo        String          @unique
+  comandaId     String?         @unique
   origen        OrigenVenta
-  nombreCliente String      @default("Mostrador")
+  nombreCliente String          @default("Mostrador")
   subtotal      Decimal
-  descuento     Decimal     @default(0)
+  descuento     Decimal         @default(0)
   /// Taxa de serviço (gorjeta), separada do consumo. total = subtotal - descuento + servicio.
-  servicio      Decimal     @default(0)
+  servicio      Decimal         @default(0)
   total         Decimal
   metodoPago    MetodoPago
-  estado        EstadoVenta @default(RECIBIDO)
+  bandeira      BandeiraCartao?
+  estado        EstadoVenta     @default(RECIBIDO)
   cajaSesionId  String
   operadorId    String
-  comanda       Comanda?    @relation(fields: [comandaId], references: [id])
-  cajaSesion    CajaSesion  @relation(fields: [cajaSesionId], references: [id])
+  comanda       Comanda?        @relation(fields: [comandaId], references: [id])
+  cajaSesion    CajaSesion      @relation(fields: [cajaSesionId], references: [id])
   items         VentaItem[]
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 }
 
 model VentaItem {
@@ -257,7 +258,17 @@ enum MetodoPago {
   EFECTIVO
   TARJETA_CREDITO
   TARJETA_DEBITO
-  TRANSFERENCIA
+  PIX
+}
+
+/// Bandeira do cartão (obrigatória quando o pagamento é crédito ou débito).
+enum BandeiraCartao {
+  VISA
+  MASTERCARD
+  ELO
+  AMEX
+  HIPERCARD
+  OUTRA
 }
 
 enum TipoMovimiento {

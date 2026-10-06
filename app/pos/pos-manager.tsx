@@ -7,16 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatBRL } from "@/lib/format";
-import { METODOS_PAGO } from "@/lib/metodos-pago";
+import type { BandeiraValue, MetodoPagoValue } from "@/lib/metodos-pago";
+import { FormaPagamento, pagamentoCompleto } from "@/components/forma-pagamento";
 import { confirmarVentaMostrador } from "./actions";
 
 type Producto = {
@@ -41,7 +35,8 @@ export function PosManager({
 }) {
   const router = useRouter();
   const [cart, setCart] = useState<Record<string, number>>({});
-  const [metodoPago, setMetodoPago] = useState<(typeof METODOS_PAGO)[number]["value"]>("EFECTIVO");
+  const [metodoPago, setMetodoPago] = useState<MetodoPagoValue>("EFECTIVO");
+  const [bandeira, setBandeira] = useState<BandeiraValue | null>(null);
   const [nombreCliente, setNombreCliente] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -81,11 +76,13 @@ export function PosManager({
       const result = await confirmarVentaMostrador({
         items: cartItems.map((i) => ({ productoId: i.producto.id, cantidad: i.cantidad })),
         metodoPago,
+        bandeira,
         nombreCliente: nombreCliente || undefined,
       });
       toast.success(`Venda ${result.codigo} confirmada — ${formatBRL(Number(result.total))}`);
       setCart({});
       setNombreCliente("");
+      setBandeira(null);
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao confirmar a venda");
@@ -173,18 +170,7 @@ export function PosManager({
 
         <div className="flex flex-col gap-1.5">
           <Label>Forma de pagamento</Label>
-          <Select value={metodoPago} onValueChange={(v) => setMetodoPago(v as typeof metodoPago)} items={METODOS_PAGO}>
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {METODOS_PAGO.map((m) => (
-                <SelectItem key={m.value} value={m.value}>
-                  {m.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <FormaPagamento metodo={metodoPago} onMetodo={setMetodoPago} bandeira={bandeira} onBandeira={setBandeira} />
         </div>
 
         <div className="flex items-center justify-between border-t pt-3 text-lg font-semibold">
@@ -192,7 +178,10 @@ export function PosManager({
           <span>{formatBRL(total)}</span>
         </div>
 
-        <Button disabled={cartItems.length === 0 || loading} onClick={handleConfirmar}>
+        <Button
+          disabled={cartItems.length === 0 || loading || !pagamentoCompleto(metodoPago, bandeira)}
+          onClick={handleConfirmar}
+        >
           {loading ? "Confirmando..." : "Confirmar venda"}
         </Button>
       </div>

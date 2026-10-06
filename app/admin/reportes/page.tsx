@@ -2,12 +2,10 @@ import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatBRL } from "@/lib/format";
-import { METODOS_PAGO } from "@/lib/metodos-pago";
-
-const METODO_PAGO_LABEL: Record<string, string> = Object.fromEntries(METODOS_PAGO.map((m) => [m.value, m.label]));
+import { BANDEIRA_LABEL, METODO_PAGO_LABEL } from "@/lib/metodos-pago";
 
 export default async function ReportesPage() {
-  const [agregado, porMetodoPago, topItems] = await Promise.all([
+  const [agregado, porMetodoPago, topItems, porBandeira] = await Promise.all([
     prisma.venta.aggregate({ _avg: { total: true }, _count: { _all: true } }),
     prisma.venta.groupBy({
       by: ["metodoPago"],
@@ -19,6 +17,14 @@ export default async function ReportesPage() {
       _sum: { cantidad: true, total: true },
       orderBy: { _sum: { total: "desc" } },
       take: 5,
+    }),
+    // Para conferir com a maquininha: crédito/débito separados por bandeira.
+    prisma.venta.groupBy({
+      by: ["metodoPago", "bandeira"],
+      where: { metodoPago: { in: ["TARJETA_CREDITO", "TARJETA_DEBITO"] } },
+      _sum: { total: true },
+      _count: { _all: true },
+      orderBy: [{ metodoPago: "asc" }, { bandeira: "asc" }],
     }),
   ]);
 
@@ -66,6 +72,31 @@ export default async function ReportesPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Cartões por bandeira</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {porBandeira.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Ainda não há vendas no cartão.</p>
+          ) : (
+            <ul className="flex flex-col gap-1 text-sm">
+              {porBandeira.map((b) => (
+                <li key={`${b.metodoPago}-${b.bandeira}`} className="flex justify-between">
+                  <span>
+                    {METODO_PAGO_LABEL[b.metodoPago] ?? b.metodoPago} ·{" "}
+                    {b.bandeira ? BANDEIRA_LABEL[b.bandeira] : "Sem bandeira (vendas antigas)"}
+                  </span>
+                  <span className="font-medium">
+                    {formatBRL(Number(b._sum.total ?? 0))} ({b._count._all})
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

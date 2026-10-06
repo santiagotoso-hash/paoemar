@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { camposPagamento, validarPagamento } from "@/lib/metodos-pago";
 import { Prisma } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -383,11 +384,13 @@ export async function liberarMesa(comandaId: string, input: unknown): Promise<Re
   return { ok: true };
 }
 
-const fecharContaSchema = z.object({
-  metodoPago: z.enum(["EFECTIVO", "TARJETA_CREDITO", "TARJETA_DEBITO", "TRANSFERENCIA"]),
-  /** O total que o aparelho mostrou ao cliente; se a conta mudou nesse meio tempo, não fecha. */
-  totalEsperado: z.number().nonnegative(),
-});
+const fecharContaSchema = z
+  .object({
+    ...camposPagamento,
+    /** O total que o aparelho mostrou ao cliente; se a conta mudou nesse meio tempo, não fecha. */
+    totalEsperado: z.number().nonnegative(),
+  })
+  .superRefine(validarPagamento);
 
 /**
  * Fecha a mesa e gera a Venta. Usa o caixa aberto de quem está logado no aparelho;
@@ -452,6 +455,7 @@ export async function fecharConta(comandaId: string, input: unknown): Promise<Re
           origen: "COMANDA",
           operadorId: userId,
           metodoPago: data.metodoPago,
+          bandeira: data.bandeira,
           nombreCliente: nomeMesa(comanda.tipo, comanda.codigo),
           comandaId: comanda.id,
           servicio,
