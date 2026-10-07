@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { ArrowLeft, Check, ChefHat, Clock, DoorOpen, Eye, NotebookPen, Plus, Send, Trash2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -19,7 +18,8 @@ import {
 import { cn } from "@/lib/utils";
 import { formatBRL, formatHora, redondear2, tempoDesde } from "@/lib/format";
 import { dividirConta, nomeMesa, TAXA_SERVICO } from "@/lib/mesas";
-import { METODOS_PAGO, type MetodoPagoValue } from "@/lib/metodos-pago";
+import type { BandeiraValue, MetodoPagoValue } from "@/lib/metodos-pago";
+import { FormaPagamento, pagamentoCompleto } from "@/components/forma-pagamento";
 import { Contador } from "../../contador";
 import { definirObservacao, totalPendente, usePendentes, type ItemPendente } from "../../pendentes";
 import { lancarPendentes } from "../../lancar-pendentes";
@@ -573,12 +573,13 @@ function FecharContaDialog({
   onFechada: () => void;
 }) {
   const [metodoPago, setMetodoPago] = useState<MetodoPagoValue>("EFECTIVO");
+  const [bandeira, setBandeira] = useState<BandeiraValue | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function handleConfirmar() {
     setLoading(true);
     try {
-      const res = await fecharConta(mesaId, { metodoPago, totalEsperado: total });
+      const res = await fecharConta(mesaId, { metodoPago, bandeira, totalEsperado: total });
       if (!res.ok) {
         toast.error(res.error);
         return;
@@ -628,26 +629,11 @@ function FecharContaDialog({
           )}
           <div className="flex flex-col gap-1.5">
             <Label>Forma de pagamento</Label>
-            <Select
-              value={metodoPago}
-              onValueChange={(v) => setMetodoPago(v as MetodoPagoValue)}
-              items={METODOS_PAGO}
-            >
-              <SelectTrigger className="h-11 w-full rounded-xl">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {METODOS_PAGO.map((m) => (
-                  <SelectItem key={m.value} value={m.value}>
-                    {m.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <FormaPagamento metodo={metodoPago} onMetodo={setMetodoPago} bandeira={bandeira} onBandeira={setBandeira} />
           </div>
         </div>
         <DialogFooter>
-          <Button size="touch" onClick={handleConfirmar} disabled={loading}>
+          <Button size="touch" onClick={handleConfirmar} disabled={loading || !pagamentoCompleto(metodoPago, bandeira)}>
             {loading ? "Fechando..." : `Confirmar pagamento · ${formatBRL(total)}`}
           </Button>
         </DialogFooter>
