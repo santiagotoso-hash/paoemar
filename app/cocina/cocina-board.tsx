@@ -120,11 +120,25 @@ export function CocinaBoard({
     return () => source.close();
   }, []);
 
+  // Pedidos com um "Avançar" em andamento: o botão fica desativado (evita toque duplo).
+  const [avancando, setAvancando] = useState<Set<string>>(new Set());
+
   async function handleAvanzar(v: VentaEvent) {
+    if (avancando.has(v.id)) return;
+    setAvancando((s) => new Set(s).add(v.id));
     try {
-      await (v.origen === "MESA" ? avanzarEstadoRonda(v.id) : avanzarEstadoVenta(v.id));
+      const res = await (v.origen === "MESA"
+        ? avanzarEstadoRonda(v.id, v.estado)
+        : avanzarEstadoVenta(v.id, v.estado));
+      if (!res.ok) toast.error(res.error);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao avançar o status");
+    } finally {
+      setAvancando((s) => {
+        const n = new Set(s);
+        n.delete(v.id);
+        return n;
+      });
     }
   }
 
@@ -180,8 +194,12 @@ export function CocinaBoard({
                         ))}
                       </ul>
                       <LinhaDoTempo tempos={temposDe(v)} />
-                      <Button size="sm" onClick={() => handleAvanzar(v)}>
-                        {col.estado === "LISTO" ? "Marcar entregue" : "Avançar"}
+                      <Button size="sm" onClick={() => handleAvanzar(v)} disabled={avancando.has(v.id)}>
+                        {avancando.has(v.id)
+                          ? "Avançando..."
+                          : col.estado === "LISTO"
+                            ? "Marcar entregue"
+                            : "Avançar"}
                       </Button>
                     </CardContent>
                   </Card>
