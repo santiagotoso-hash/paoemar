@@ -25,6 +25,11 @@ export type CrearVentaParams = {
   comandaId?: string;
   /** Taxa de serviço, separada del subtotal. */
   servicio?: number;
+  /**
+   * Ajuste manual no fechamento: negativo = desconto, positivo = adicional.
+   * Fica gravado em `descuento` com o sinal invertido (desconto positivo, adicional negativo).
+   */
+  ajuste?: number;
   /** Si viene, se usa esta caja en vez de la caja abierta del operador (mesas). */
   cajaSesionId?: string;
   /**
@@ -55,6 +60,7 @@ export async function bloquearComandaAbierta(tx: Prisma.TransactionClient, coman
 export async function crearVentaTx(tx: Prisma.TransactionClient, params: CrearVentaParams) {
   const { items, origen, operadorId, metodoPago, nombreCliente, comandaId } = params;
   const servicio = redondear2(params.servicio ?? 0);
+  const ajuste = redondear2(params.ajuste ?? 0);
   const enviarCocina = params.enviarCocina ?? true;
   const validarStock = params.validarStock ?? true;
 
@@ -97,6 +103,10 @@ export async function crearVentaTx(tx: Prisma.TransactionClient, params: CrearVe
     };
   });
 
+  if (redondear2(subtotal + servicio + ajuste) < 0) {
+    throw new Error("O desconto não pode ser maior que o valor da conta");
+  }
+
   const codigo = `V-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
   const nuevaVenta = await tx.venta.create({
@@ -105,9 +115,9 @@ export async function crearVentaTx(tx: Prisma.TransactionClient, params: CrearVe
       origen,
       nombreCliente: nombreCliente || "Balcão",
       subtotal,
-      descuento: 0,
+      descuento: redondear2(-ajuste),
       servicio,
-      total: redondear2(subtotal + servicio),
+      total: redondear2(subtotal + servicio + ajuste),
       metodoPago,
       bandeira: bandeiraParaGravar(metodoPago, params.bandeira),
       ...(enviarCocina ? {} : { estado: "ENTREGADO" as const }),

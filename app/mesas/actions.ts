@@ -404,6 +404,8 @@ const fecharContaSchema = z
     ...camposPagamento,
     /** O total que o aparelho mostrou ao cliente; se a conta mudou nesse meio tempo, não fecha. */
     totalEsperado: z.number().nonnegative(),
+    /** Desconto (negativo) ou adicional (positivo) digitado no fechamento. */
+    ajuste: z.number().min(-100_000).max(100_000).default(0),
   })
   .superRefine(validarPagamento);
 
@@ -443,7 +445,11 @@ export async function fecharConta(comandaId: string, input: unknown): Promise<Re
 
         const consumo = redondear2(comanda.items.reduce((acc, i) => acc + totalItem(i), 0));
         const servicio = comanda.servicio ? redondear2(consumo * TAXA_SERVICO) : 0;
-        if (Math.abs(redondear2(consumo + servicio) - data.totalEsperado) >= 0.01) {
+        const ajuste = redondear2(data.ajuste);
+        if (redondear2(consumo + servicio + ajuste) < 0) {
+          return { error: "O desconto não pode ser maior que o valor da conta" };
+        }
+        if (Math.abs(redondear2(consumo + servicio + ajuste) - data.totalEsperado) >= 0.01) {
           return { error: "A conta mudou enquanto você fechava. Confira os itens e tente de novo." };
         }
 
@@ -474,6 +480,7 @@ export async function fecharConta(comandaId: string, input: unknown): Promise<Re
           nombreCliente: nomeMesa(comanda.tipo, comanda.codigo),
           comandaId: comanda.id,
           servicio,
+          ajuste,
           cajaSesionId: caja.id,
           enviarCocina: false,
           validarStock: false,
