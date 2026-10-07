@@ -1,9 +1,9 @@
--- Formas de pagamento: Transferência vira Pix e cartões passam a guardar a bandeira.
+-- Formas de pagamento: Pix e bandeira do cartão.
+-- Só ADICIONA (não renomeia nem remove): pode ser aplicada antes do deploy do código novo,
+-- o código antigo continua funcionando. TRANSFERENCIA fica no enum como legado.
 
--- Renomear (em vez de recriar o enum): nunca falha, mesmo que existam vendas antigas
--- por transferência — elas passam a aparecer como Pix.
 -- AlterEnum
-ALTER TYPE "MetodoPago" RENAME VALUE 'TRANSFERENCIA' TO 'PIX';
+ALTER TYPE "MetodoPago" ADD VALUE 'PIX';
 
 -- CreateEnum
 CREATE TYPE "BandeiraCartao" AS ENUM ('VISA', 'MASTERCARD', 'ELO', 'AMEX', 'HIPERCARD', 'OUTRA');

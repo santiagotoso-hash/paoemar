@@ -258,6 +258,8 @@ enum MetodoPago {
   EFECTIVO
   TARJETA_CREDITO
   TARJETA_DEBITO
+  /// Legado: não aparece mais na tela (substituído por PIX); fica para vendas antigas.
+  TRANSFERENCIA
   PIX
 }
 

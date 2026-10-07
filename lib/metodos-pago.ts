@@ -22,11 +22,16 @@ export const BANDEIRAS = [
 
 export type BandeiraValue = (typeof BANDEIRAS)[number]["value"];
 
-export function exigeBandeira(metodo: MetodoPagoValue) {
+/** Aceita também métodos legados (string), que nunca exigem bandeira. */
+export function exigeBandeira(metodo: MetodoPagoValue | string) {
   return metodo === "TARJETA_CREDITO" || metodo === "TARJETA_DEBITO";
 }
 
-export const METODO_PAGO_LABEL: Record<string, string> = Object.fromEntries(METODOS_PAGO.map((m) => [m.value, m.label]));
+export const METODO_PAGO_LABEL: Record<string, string> = {
+  ...Object.fromEntries(METODOS_PAGO.map((m) => [m.value, m.label])),
+  // Legado: não é mais oferecido, mas pode existir em vendas antigas.
+  TRANSFERENCIA: "Transferência",
+};
 export const BANDEIRA_LABEL: Record<string, string> = Object.fromEntries(BANDEIRAS.map((b) => [b.value, b.label]));
 
 /** Campos de pagamento para os schemas das actions (use com `.superRefine(validarPagamento)`). */
@@ -45,6 +50,6 @@ export function validarPagamento(
 }
 
 /** Bandeira só fica gravada em pagamento com cartão. */
-export function bandeiraParaGravar(metodo: MetodoPagoValue, bandeira?: BandeiraValue | null) {
+export function bandeiraParaGravar(metodo: MetodoPagoValue | string, bandeira?: BandeiraValue | null) {
   return exigeBandeira(metodo) ? (bandeira ?? null) : null;
 }
