@@ -43,8 +43,22 @@ export async function resolveRole(
   return "admin";
 }
 
+/**
+ * Páginas renderizadas fora do middleware (ex.: o 404 de um arquivo como /sw.js,
+ * que o matcher ignora por ter extensão) não têm contexto do Clerk e o auth() lança.
+ * Nesse caso tratamos como visitante sem login, em vez de quebrar o cabeçalho.
+ */
+async function usuarioClerk() {
+  try {
+    return await currentUser();
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("clerkMiddleware")) return null;
+    throw err;
+  }
+}
+
 export async function getCurrentUser(): Promise<{ userId: string; role: Role | null }> {
-  const user = await currentUser();
+  const user = await usuarioClerk();
   if (!user) return { userId: "", role: null };
 
   const rawRole = (user.publicMetadata as { role?: Role } | undefined)?.role ?? null;
