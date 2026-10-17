@@ -1,6 +1,8 @@
-import type { MetodoPago, OrigenVenta, Prisma } from "@prisma/client";
+import type { BandeiraCartao, MetodoPago, OrigenVenta, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { redondear2 } from "@/lib/format";
+import { baixarInsumosDaVenda, buscarReceitas } from "@/lib/estoque";
+import { bandeiraParaGravar } from "@/lib/metodos-pago";
 import { publishStockAlerts, publishVentaEvent } from "@/lib/realtime";
 
 export type VentaItemInput = {
@@ -18,10 +20,17 @@ export type CrearVentaParams = {
   origen: OrigenVenta;
   operadorId: string;
   metodoPago: MetodoPago;
+  /** Bandeira do cartão (só crédito/débito; nos outros métodos é ignorada). */
+  bandeira?: BandeiraCartao | null;
   nombreCliente?: string;
   comandaId?: string;
   /** Taxa de serviço, separada del subtotal. */
   servicio?: number;
+  /**
+   * Ajuste manual no fechamento: negativo = desconto, positivo = adicional.
+   * Fica gravado em `descuento` com o sinal invertido (desconto positivo, adicional negativo).
+   */
+  ajuste?: number;
   /** Si viene, se usa esta caja en vez de la caja abierta del operador (mesas). */
   cajaSesionId?: string;
   /**
@@ -52,6 +61,7 @@ export async function bloquearComandaAbierta(tx: Prisma.TransactionClient, coman
 export async function crearVentaTx(tx: Prisma.TransactionClient, params: CrearVentaParams) {
   const { items, origen, operadorId, metodoPago, nombreCliente, comandaId } = params;
   const servicio = redondear2(params.servicio ?? 0);
+  const ajuste = redondear2(params.ajuste ?? 0);
   const enviarCocina = params.enviarCocina ?? true;
   const validarStock = params.validarStock ?? true;
 
@@ -71,13 +81,15 @@ export async function crearVentaTx(tx: Prisma.TransactionClient, params: CrearVe
   const productos = await tx.producto.findMany({
     where: { id: { in: items.map((i) => i.productoId) } },
   });
+  // Produto com ficha técnica baixa insumos; o stockActual dele não é usado.
+  const receitas = await buscarReceitas(tx, productos.map((p) => p.id));
 
   let subtotal = 0;
   const itemsData = items.map((item) => {
     const producto = productos.find((p) => p.id === item.productoId);
     if (!producto) throw new Error("Um dos produtos não existe mais");
     if (item.cantidad <= 0) throw new Error(`Quantidade inválida para ${producto.nombre}`);
-    if (validarStock && Number(producto.stockActual) < item.cantidad) {
+    if (validarStock && !receitas.has(producto.id) && Number(producto.stockActual) < item.cantidad) {
       throw new Error(`Estoque insuficiente de "${producto.nombre}" (restam ${producto.stockActual})`);
     }
     const precioUnit = redondear2(item.precioUnit ?? Number(producto.precio));
@@ -94,6 +106,10 @@ export async function crearVentaTx(tx: Prisma.TransactionClient, params: CrearVe
     };
   });
 
+  if (redondear2(subtotal + servicio + ajuste) < 0) {
+    throw new Error("O desconto não pode ser maior que o valor da conta");
+  }
+
   const codigo = `V-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
   const nuevaVenta = await tx.venta.create({
@@ -102,10 +118,11 @@ export async function crearVentaTx(tx: Prisma.TransactionClient, params: CrearVe
       origen,
       nombreCliente: nombreCliente || "Balcão",
       subtotal,
-      descuento: 0,
+      descuento: redondear2(-ajuste),
       servicio,
-      total: redondear2(subtotal + servicio),
+      total: redondear2(subtotal + servicio + ajuste),
       metodoPago,
+      bandeira: bandeiraParaGravar(metodoPago, params.bandeira),
       ...(enviarCocina ? {} : { estado: "ENTREGADO" as const }),
       cajaSesionId: cajaSesion.id,
       operadorId,
@@ -116,11 +133,19 @@ export async function crearVentaTx(tx: Prisma.TransactionClient, params: CrearVe
   });
 
   for (const item of itemsData) {
+    if (receitas.has(item.productoId)) continue;
     await tx.producto.update({
       where: { id: item.productoId },
       data: { stockActual: { decrement: item.cantidad } },
     });
   }
+
+  await baixarInsumosDaVenda(
+    tx,
+    nuevaVenta.id,
+    receitas,
+    itemsData.map((i) => ({ productoId: i.productoId, cantidad: i.cantidad })),
+  );
 
   return nuevaVenta;
 }

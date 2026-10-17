@@ -7,6 +7,8 @@ import { getStockBajo } from "@/lib/realtime";
 const TABS = [
   { href: "/admin/productos", label: "Produtos" },
   { href: "/admin/categorias", label: "Categorias" },
+  { href: "/admin/estoque", label: "Estoque" },
+  { href: "/admin/compras", label: "Compras" },
   { href: "/admin/atendentes", label: "Atendentes" },
   { href: "/admin/cancelamentos", label: "Cancelamentos" },
   { href: "/admin/reportes", label: "Relatórios" },

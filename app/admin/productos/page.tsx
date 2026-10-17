@@ -2,9 +2,10 @@ import { prisma } from "@/lib/prisma";
 import { ProductosManager } from "./productos-manager";
 
 export default async function ProductosPage() {
-  const [productos, categorias] = await Promise.all([
-    prisma.producto.findMany({ orderBy: { nombre: "asc" } }),
+  const [productos, categorias, insumos] = await Promise.all([
+    prisma.producto.findMany({ orderBy: { nombre: "asc" }, include: { receita: true } }),
     prisma.categoria.findMany({ orderBy: { nombre: "asc" } }),
+    prisma.insumo.findMany({ where: { ativo: true }, orderBy: { nome: "asc" } }),
   ]);
 
   const productosSerializados = productos.map((p) => ({
@@ -18,7 +19,15 @@ export default async function ProductosPage() {
     stockActual: p.stockActual.toString(),
     stockMinimo: p.stockMinimo.toString(),
     activo: p.activo,
+    receita: p.receita.map((r) => ({ insumoId: r.insumoId, quantidade: r.quantidade.toString() })),
   }));
 
-  return <ProductosManager productos={productosSerializados} categorias={categorias} />;
+  const insumosSerializados = insumos.map((i) => ({
+    id: i.id,
+    nome: i.nome,
+    unidade: i.unidade,
+    custoMedio: i.custoMedio.toString(),
+  }));
+
+  return <ProductosManager productos={productosSerializados} categorias={categorias} insumos={insumosSerializados} />;
 }

@@ -30,3 +30,29 @@ export function tempoDesde(iso: string, agora: number = Date.now()) {
 export function redondear2(valor: number) {
   return Math.round((valor + Number.EPSILON) * 100) / 100;
 }
+
+/** 00:00 de hoje no fuso da casa (Brasil sem horário de verão desde 2019: -03:00). */
+export function inicioDoDiaSP(agora: Date = new Date()) {
+  const dia = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(agora); // AAAA-MM-DD
+  return new Date(`${dia}T00:00:00-03:00`);
+}
+
+const dataHora = new Intl.DateTimeFormat("pt-BR", {
+  day: "2-digit",
+  month: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: "America/Sao_Paulo",
+});
+
+/** "17/10, 14:32" */
+export function formatDataHora(iso: string) {
+  return dataHora.format(new Date(iso));
+}
+
+const data = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo" });
+
+/** "17/10/2026" */
+export function formatData(iso: string) {
+  return data.format(new Date(iso));
+}

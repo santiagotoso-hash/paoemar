@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Check, ChefHat, Clock, DoorOpen, Eye, NotebookPen, Plus, Send, Trash2, Users } from "lucide-react";
+import { ArrowLeft, Check, ChefHat, Clock, DoorOpen, Eye, Minus, NotebookPen, Plus, Send, Trash2, Users } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -19,7 +19,8 @@ import {
 import { cn } from "@/lib/utils";
 import { formatBRL, formatHora, redondear2, tempoDesde } from "@/lib/format";
 import { dividirConta, nomeMesa, TAXA_SERVICO } from "@/lib/mesas";
-import { METODOS_PAGO, type MetodoPagoValue } from "@/lib/metodos-pago";
+import type { BandeiraValue, MetodoPagoValue } from "@/lib/metodos-pago";
+import { FormaPagamento, pagamentoCompleto } from "@/components/forma-pagamento";
 import { Contador } from "../../contador";
 import { definirObservacao, totalPendente, usePendentes, type ItemPendente } from "../../pendentes";
 import { lancarPendentes } from "../../lancar-pendentes";
@@ -573,12 +574,30 @@ function FecharContaDialog({
   onFechada: () => void;
 }) {
   const [metodoPago, setMetodoPago] = useState<MetodoPagoValue>("EFECTIVO");
+  const [bandeira, setBandeira] = useState<BandeiraValue | null>(null);
   const [loading, setLoading] = useState(false);
+  // Desconto (−) ou adicional (+): o valor é digitado sem sinal; o botão ou um "-"/"+" digitado escolhe o sinal.
+  const [ajusteTexto, setAjusteTexto] = useState("");
+  const [negativo, setNegativo] = useState(true);
+
+  const valorAjuste = Number(ajusteTexto.replace(",", ".")) || 0;
+  const ajuste = redondear2(negativo ? -valorAjuste : valorAjuste);
+  const totalFinal = redondear2(total + ajuste);
+  const ajusteInvalido = totalFinal < 0;
+
+  function digitarAjuste(texto: string) {
+    if (texto.includes("-")) setNegativo(true);
+    else if (texto.includes("+")) setNegativo(false);
+    // Só dígitos e uma vírgula, até 2 casas decimais.
+    const limpo = texto.replace(/[^\d.,]/g, "").replace(".", ",");
+    const [inteiro, ...resto] = limpo.split(",");
+    setAjusteTexto(resto.length ? `${inteiro},${resto.join("").slice(0, 2)}` : inteiro);
+  }
 
   async function handleConfirmar() {
     setLoading(true);
     try {
-      const res = await fecharConta(mesaId, { metodoPago, totalEsperado: total });
+      const res = await fecharConta(mesaId, { metodoPago, bandeira, ajuste, totalEsperado: totalFinal });
       if (!res.ok) {
         toast.error(res.error);
         return;
@@ -609,9 +628,41 @@ function FecharContaDialog({
               <span className="text-muted-foreground">Serviço</span>
               <span className="tabular-nums">{formatBRL(servico)}</span>
             </div>
+            <div className="flex items-center justify-between gap-2">
+              <label htmlFor="ajuste-conta" className="flex flex-col">
+                <span className="text-muted-foreground">Desconto / adicional</span>
+                <span className={cn("text-xs", ajuste < 0 ? "text-primary" : "text-muted-foreground")}>
+                  {ajuste < 0 ? "Desconto" : ajuste > 0 ? "Adicional" : "Opcional"}
+                </span>
+              </label>
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-touch"
+                  onClick={() => setNegativo((n) => !n)}
+                  aria-label={negativo ? "Desconto (toque para adicional)" : "Adicional (toque para desconto)"}
+                >
+                  {negativo ? <Minus /> : <Plus />}
+                </Button>
+                <Input
+                  id="ajuste-conta"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  placeholder="0,00"
+                  value={ajusteTexto}
+                  onChange={(e) => digitarAjuste(e.target.value)}
+                  aria-invalid={ajusteInvalido}
+                  className="h-11 w-28 rounded-xl text-right text-base tabular-nums"
+                />
+              </div>
+            </div>
+            {ajusteInvalido && (
+              <p className="text-xs text-destructive">O desconto não pode ser maior que o valor da conta.</p>
+            )}
             <div className="mt-1 flex justify-between border-t pt-2 text-lg font-semibold">
               <span>Total</span>
-              <span className="tabular-nums">{formatBRL(total)}</span>
+              <span className="tabular-nums">{formatBRL(totalFinal)}</span>
             </div>
           </div>
           {pessoas > 1 && (
@@ -623,32 +674,17 @@ function FecharContaDialog({
                   {servico > 0 && <span className="block text-xs text-muted-foreground">com serviço incluído</span>}
                 </span>
               </div>
-              <PorPessoa total={total} pessoas={pessoas} className="text-right" destaque />
+              <PorPessoa total={totalFinal} pessoas={pessoas} className="text-right" destaque />
             </div>
           )}
           <div className="flex flex-col gap-1.5">
             <Label>Forma de pagamento</Label>
-            <Select
-              value={metodoPago}
-              onValueChange={(v) => setMetodoPago(v as MetodoPagoValue)}
-              items={METODOS_PAGO}
-            >
-              <SelectTrigger className="h-11 w-full rounded-xl">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {METODOS_PAGO.map((m) => (
-                  <SelectItem key={m.value} value={m.value}>
-                    {m.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <FormaPagamento metodo={metodoPago} onMetodo={setMetodoPago} bandeira={bandeira} onBandeira={setBandeira} />
           </div>
         </div>
         <DialogFooter>
-          <Button size="touch" onClick={handleConfirmar} disabled={loading}>
-            {loading ? "Fechando..." : `Confirmar pagamento · ${formatBRL(total)}`}
+          <Button size="touch" onClick={handleConfirmar} disabled={loading || ajusteInvalido || !pagamentoCompleto(metodoPago, bandeira)}>
+            {loading ? "Fechando..." : `Confirmar pagamento · ${formatBRL(totalFinal)}`}
           </Button>
         </DialogFooter>
       </DialogContent>

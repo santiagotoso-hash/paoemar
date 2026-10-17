@@ -29,12 +29,14 @@ export function StockAlertsBanner({
   return (
     <Alert variant="destructive">
       <AlertTriangleIcon />
-      <AlertTitle>Estoque baixo em {alertas.length} produto(s)</AlertTitle>
+      <AlertTitle>Estoque baixo em {alertas.length} item(ns)</AlertTitle>
       <AlertDescription>
         <ul className="list-inside list-disc">
           {alertas.map((a) => (
-            <li key={a.id}>
-              {a.nombre} ({a.codigo}): {a.stockActual} / mínimo {a.stockMinimo}
+            <li key={`${a.tipo}-${a.id}`}>
+              {a.nombre}
+              {a.tipo === "insumo" ? " (insumo)" : ` (${a.codigo})`}: {a.stockActual}
+              {a.unidad ? ` ${a.unidad}` : ""} / mínimo {a.stockMinimo}
             </li>
           ))}
         </ul>
