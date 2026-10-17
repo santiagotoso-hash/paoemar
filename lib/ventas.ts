@@ -1,6 +1,7 @@
 import type { BandeiraCartao, MetodoPago, OrigenVenta, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { redondear2 } from "@/lib/format";
+import { baixarInsumosDaVenda, buscarReceitas } from "@/lib/estoque";
 import { bandeiraParaGravar } from "@/lib/metodos-pago";
 import { publishStockAlerts, publishVentaEvent } from "@/lib/realtime";
 
@@ -80,13 +81,15 @@ export async function crearVentaTx(tx: Prisma.TransactionClient, params: CrearVe
   const productos = await tx.producto.findMany({
     where: { id: { in: items.map((i) => i.productoId) } },
   });
+  // Produto com ficha técnica baixa insumos; o stockActual dele não é usado.
+  const receitas = await buscarReceitas(tx, productos.map((p) => p.id));
 
   let subtotal = 0;
   const itemsData = items.map((item) => {
     const producto = productos.find((p) => p.id === item.productoId);
     if (!producto) throw new Error("Um dos produtos não existe mais");
     if (item.cantidad <= 0) throw new Error(`Quantidade inválida para ${producto.nombre}`);
-    if (validarStock && Number(producto.stockActual) < item.cantidad) {
+    if (validarStock && !receitas.has(producto.id) && Number(producto.stockActual) < item.cantidad) {
       throw new Error(`Estoque insuficiente de "${producto.nombre}" (restam ${producto.stockActual})`);
     }
     const precioUnit = redondear2(item.precioUnit ?? Number(producto.precio));
@@ -130,11 +133,19 @@ export async function crearVentaTx(tx: Prisma.TransactionClient, params: CrearVe
   });
 
   for (const item of itemsData) {
+    if (receitas.has(item.productoId)) continue;
     await tx.producto.update({
       where: { id: item.productoId },
       data: { stockActual: { decrement: item.cantidad } },
     });
   }
+
+  await baixarInsumosDaVenda(
+    tx,
+    nuevaVenta.id,
+    receitas,
+    itemsData.map((i) => ({ productoId: i.productoId, cantidad: i.cantidad })),
+  );
 
   return nuevaVenta;
 }

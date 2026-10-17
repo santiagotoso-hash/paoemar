@@ -24,9 +24,15 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { formatBRL } from "@/lib/format";
-import { crearProducto, editarProducto, toggleActivoProducto } from "./actions";
+import { TEXTO_UNIDADE } from "@/lib/estoque";
+import type { UnidadeInsumo } from "@prisma/client";
+import { crearProducto, editarProducto, salvarReceita, toggleActivoProducto } from "./actions";
 
 type Categoria = { id: string; nombre: string };
+
+type Insumo = { id: string; nome: string; unidade: UnidadeInsumo; custoMedio: string };
+
+type LinhaReceita = { insumoId: string; quantidade: string };
 
 type Producto = {
   id: string;
@@ -39,7 +45,104 @@ type Producto = {
   stockActual: string;
   stockMinimo: string;
   activo: boolean;
+  receita: LinhaReceita[];
 };
+
+/** Ficha técnica: quanto de cada insumo vai em 1 unidade (ou 1 kg) do produto. */
+function ReceitaForm({ producto, insumos, onDone }: { producto: Producto; insumos: Insumo[]; onDone: () => void }) {
+  const [linhas, setLinhas] = useState<LinhaReceita[]>(producto.receita);
+  const [loading, setLoading] = useState(false);
+
+  const insumo = (id: string) => insumos.find((i) => i.id === id);
+  const custo = linhas.reduce((acc, l) => acc + (Number(l.quantidade) || 0) * Number(insumo(l.insumoId)?.custoMedio ?? 0), 0);
+  const livres = insumos.filter((i) => !linhas.some((l) => l.insumoId === i.id));
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (linhas.some((l) => !l.insumoId)) return toast.error("Escolha o insumo de cada linha");
+    setLoading(true);
+    try {
+      await salvarReceita(producto.id, linhas);
+      toast.success(linhas.length > 0 ? "Ficha técnica salva" : "Ficha técnica removida");
+      onDone();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao salvar");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <p className="text-sm text-muted-foreground">
+        Com ficha técnica, cada venda baixa estes insumos e o estoque do próprio produto deixa de ser usado.
+        Sem linhas, o produto volta a controlar o próprio estoque.
+      </p>
+      {linhas.map((l, idx) => {
+        const un = TEXTO_UNIDADE[insumo(l.insumoId)?.unidade ?? "UN"];
+        const opcoes = [...livres, ...insumos.filter((i) => i.id === l.insumoId)];
+        return (
+          <div key={idx} className="grid grid-cols-[1fr_8rem_auto] items-end gap-2">
+            <div className="flex flex-col gap-1.5">
+              <Label>Insumo</Label>
+              <Select
+                value={l.insumoId}
+                onValueChange={(v) => setLinhas((a) => a.map((x, i) => (i === idx ? { ...x, insumoId: v as string } : x)))}
+                items={opcoes.map((i) => ({ value: i.id, label: i.nome }))}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Escolha o insumo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {opcoes.map((i) => (
+                    <SelectItem key={i.id} value={i.id}>
+                      {i.nome} ({TEXTO_UNIDADE[i.unidade]})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Qtd{l.insumoId ? ` (${un})` : ""}</Label>
+              <Input
+                type="number"
+                step="0.0001"
+                min="0"
+                value={l.quantidade}
+                onChange={(e) => setLinhas((a) => a.map((x, i) => (i === idx ? { ...x, quantidade: e.target.value } : x)))}
+                required
+              />
+            </div>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setLinhas((a) => a.filter((_, i) => i !== idx))}>
+              Remover
+            </Button>
+          </div>
+        );
+      })}
+      <div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={livres.length === 0}
+          onClick={() => setLinhas((a) => [...a, { insumoId: "", quantidade: "" }])}
+        >
+          + Insumo
+        </Button>
+      </div>
+      {linhas.length > 0 && (
+        <p className="text-sm">
+          Custo estimado: <span className="font-medium">{formatBRL(custo)}</span> · preço {formatBRL(Number(producto.precio))}
+        </p>
+      )}
+      <DialogFooter>
+        <Button type="submit" disabled={loading}>
+          {loading ? "Salvando..." : "Salvar ficha"}
+        </Button>
+      </DialogFooter>
+    </form>
+  );
+}
 
 function ProductoForm({
   producto,
@@ -163,12 +266,15 @@ function ProductoForm({
 export function ProductosManager({
   productos,
   categorias,
+  insumos,
 }: {
   productos: Producto[];
   categorias: Categoria[];
+  insumos: Insumo[];
 }) {
   const [openNuevo, setOpenNuevo] = useState(false);
   const [editando, setEditando] = useState<Producto | null>(null);
+  const [fichaDe, setFichaDe] = useState<Producto | null>(null);
 
   async function handleToggle(p: Producto) {
     try {
@@ -209,7 +315,8 @@ export function ProductosManager({
         </TableHeader>
         <TableBody>
           {productos.map((p) => {
-            const bajoStock = Number(p.stockActual) <= Number(p.stockMinimo);
+            const comFicha = p.receita.length > 0;
+            const bajoStock = !comFicha && Number(p.stockActual) <= Number(p.stockMinimo);
             return (
               <TableRow key={p.id}>
                 <TableCell>{p.codigo}</TableCell>
@@ -217,9 +324,13 @@ export function ProductosManager({
                 <TableCell>{categoriaNombre(p.categoriaId)}</TableCell>
                 <TableCell>{formatBRL(Number(p.precio))}</TableCell>
                 <TableCell>
-                  <span className={bajoStock ? "font-medium text-destructive" : ""}>
-                    {p.stockActual} {p.tipoUnidad === "KG" ? "kg" : "un."}
-                  </span>
+                  {comFicha ? (
+                    <span className="text-muted-foreground">Pela ficha técnica</span>
+                  ) : (
+                    <span className={bajoStock ? "font-medium text-destructive" : ""}>
+                      {p.stockActual} {p.tipoUnidad === "KG" ? "kg" : "un."}
+                    </span>
+                  )}
                 </TableCell>
                 <TableCell>
                   <Badge variant={p.activo ? "default" : "outline"}>
@@ -227,6 +338,9 @@ export function ProductosManager({
                   </Badge>
                 </TableCell>
                 <TableCell className="flex justify-end gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setFichaDe(p)}>
+                    Ficha técnica
+                  </Button>
                   <Button variant="outline" size="sm" onClick={() => setEditando(p)}>
                     Editar
                   </Button>
@@ -239,6 +353,15 @@ export function ProductosManager({
           })}
         </TableBody>
       </Table>
+
+      <Dialog open={!!fichaDe} onOpenChange={(open) => !open && setFichaDe(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Ficha técnica — {fichaDe?.nombre}</DialogTitle>
+          </DialogHeader>
+          {fichaDe && <ReceitaForm producto={fichaDe} insumos={insumos} onDone={() => setFichaDe(null)} />}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!editando} onOpenChange={(open) => !open && setEditando(null)}>
         <DialogContent className="sm:max-w-lg">

@@ -32,6 +32,8 @@ model Producto {
   comandaItems ComandaItem[]
   adicionais   Adicional[]
   gruposOpcion GrupoOpcion[]
+  /// Ficha técnica: se tiver linhas, a venda baixa os insumos e não usa stockActual.
+  receita      ReceitaItem[]
 }
 
 /// Grupo de escolha única ligado a um produto (ex.: recheio da tapioca).
@@ -225,6 +227,137 @@ model CajaMovimiento {
   descripcion  String?
   cajaSesion   CajaSesion     @relation(fields: [cajaSesionId], references: [id])
   createdAt    DateTime       @default(now())
+}
+
+/// Matéria-prima (insumo): estoque próprio, separado do `stockActual` dos produtos vendidos.
+model Insumo {
+  id            String             @id @default(cuid())
+  nome          String             @unique
+  unidade       UnidadeInsumo      @default(UN)
+  /// Pode ficar negativo: a venda baixa pela ficha técnica sem bloquear (o cliente já consumiu).
+  estoqueAtual  Decimal            @default(0)
+  estoqueMinimo Decimal            @default(0)
+  /// Custo médio ponderado por unidade; atualizado a cada entrada com custo.
+  custoMedio    Decimal            @default(0)
+  ativo         Boolean            @default(true)
+  criadoEm      DateTime           @default(now())
+  receita       ReceitaItem[]
+  movimentos    MovimentoEstoque[]
+  compraItens   CompraItem[]
+  codigos       FornecedorInsumo[]
+}
+
+/// Linha da ficha técnica: quanto do insumo vai em 1 unidade (ou 1 kg) do produto.
+model ReceitaItem {
+  id         String   @id @default(cuid())
+  produtoId  String
+  insumoId   String
+  quantidade Decimal
+  produto    Producto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  insumo     Insumo   @relation(fields: [insumoId], references: [id])
+
+  @@unique([produtoId, insumoId])
+}
+
+model Fornecedor {
+  id       String             @id @default(cuid())
+  nome     String
+  /// Só dígitos. Usado para reconhecer o fornecedor ao importar o XML da NF.
+  cnpj     String?            @unique
+  telefone String?
+  ativo    Boolean            @default(true)
+  criadoEm DateTime           @default(now())
+  compras  Compra[]
+  codigos  FornecedorInsumo[]
+}
+
+/// Código do item no cadastro do fornecedor -> insumo. Casa os itens nas próximas importações de XML.
+model FornecedorInsumo {
+  id           String     @id @default(cuid())
+  fornecedorId String
+  insumoId     String
+  codigo       String
+  fornecedor   Fornecedor @relation(fields: [fornecedorId], references: [id], onDelete: Cascade)
+  insumo       Insumo     @relation(fields: [insumoId], references: [id], onDelete: Cascade)
+
+  @@unique([fornecedorId, codigo])
+}
+
+/// NF de compra (entrada de mercadoria). Cada item gera um movimento ENTRADA_COMPRA.
+model Compra {
+  id           String             @id @default(cuid())
+  fornecedorId String
+  numero       String
+  serie        String             @default("")
+  /// Chave de acesso de 44 dígitos (opcional na digitação; vem do XML).
+  chaveAcesso  String?            @unique
+  emitidaEm    DateTime
+  /// Soma dos itens (já com frete/desconto por item, quando vem do XML).
+  total        Decimal
+  observacao   String?
+  origem       OrigemCompra       @default(MANUAL)
+  criadoEm     DateTime           @default(now())
+  fornecedor   Fornecedor         @relation(fields: [fornecedorId], references: [id])
+  itens        CompraItem[]
+  movimentos   MovimentoEstoque[]
+
+  @@unique([fornecedorId, numero, serie])
+  @@index([emitidaEm])
+}
+
+model CompraItem {
+  id         String  @id @default(cuid())
+  compraId   String
+  insumoId   String
+  /// Descrição como veio na NF (o insumo pode ter outro nome).
+  descricao  String
+  /// Na unidade do insumo.
+  quantidade Decimal
+  custoUnit  Decimal
+  total      Decimal
+  compra     Compra  @relation(fields: [compraId], references: [id], onDelete: Cascade)
+  insumo     Insumo  @relation(fields: [insumoId], references: [id])
+}
+
+/// Histórico de tudo que mexe no estoque de insumos. `quantidade` leva sinal (+ entra, - sai).
+model MovimentoEstoque {
+  id         String               @id @default(cuid())
+  insumoId   String
+  tipo       TipoMovimentoEstoque
+  quantidade Decimal
+  custoUnit  Decimal?
+  /// Saldo do insumo logo depois deste movimento.
+  saldoApos  Decimal
+  motivo     String?
+  compraId   String?
+  vendaId    String?
+  criadoEm   DateTime             @default(now())
+  insumo     Insumo               @relation(fields: [insumoId], references: [id])
+  compra     Compra?              @relation(fields: [compraId], references: [id])
+
+  @@index([insumoId, criadoEm])
+  @@index([criadoEm])
+}
+
+enum UnidadeInsumo {
+  UN
+  KG
+  G
+  L
+  ML
+}
+
+enum OrigemCompra {
+  MANUAL
+  XML
+}
+
+enum TipoMovimentoEstoque {
+  ENTRADA_COMPRA
+  ENTRADA_MANUAL
+  AJUSTE
+  PERDA
+  SAIDA_VENDA
 }
 
 enum TipoUnidad {
