@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 268 56" width="536" height="112">
+  <title>litocode — desenvolvimento full stack</title>
+  <g transform="scale(1.4)">
+    <rect x="0.5" y="0.5" width="39" height="39" rx="10" fill="#0f2236"/>
+    <polyline points="15,12.5 8.5,20 15,27.5" fill="none" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+    <polyline points="25,12.5 31.5,20 25,27.5" fill="none" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M15.4 21.6 q2.3 -4.4 4.6 0 t4.6 0" fill="none" stroke="#f5a524" stroke-width="2.8" stroke-linecap="round"/>
+  </g>
+  <text x="68" y="35" font-family="Segoe UI, Inter, Helvetica, Arial, sans-serif" font-size="38" letter-spacing="-1.1" fill="#0f2236"><tspan font-weight="800">lito</tspan><tspan font-weight="400">code</tspan></text>
+  <text x="69" y="51" font-family="Segoe UI, Inter, Helvetica, Arial, sans-serif" font-size="8.6" font-weight="700" letter-spacing="2.1" fill="#1f7a8c">DESENVOLVIMENTO FULL STACK</text>
+</svg>
