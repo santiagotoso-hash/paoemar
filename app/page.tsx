@@ -7,7 +7,7 @@ import {
   ChefHatIcon,
   type LucideIcon,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Landing } from "@/components/landing";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCurrentUser, ROUTE_ROLES, type Role } from "@/lib/auth";
 
@@ -52,15 +52,7 @@ const SECCIONES: { href: string; label: string; descripcion: string; icon: Lucid
 export default async function Home() {
   const { userId, role } = await getCurrentUser();
 
-  if (!userId) {
-    return (
-      <div className="flex min-h-[calc(100vh-3.5rem)] flex-col items-center justify-center gap-6 text-center">
-        <h1 className="font-heading text-4xl font-semibold">Pão e Mar</h1>
-        <p className="text-muted-foreground">Padaria boutique — ponto de venda</p>
-        <Button render={<Link href="/sign-in">Entrar</Link>} />
-      </div>
-    );
-  }
+  if (!userId) return <Landing />;
 
   const disponibles = SECCIONES.filter((s) => role && s.roles.includes(role));
 
