@@ -8,7 +8,6 @@ import {
   MailIcon,
   MessageCircleIcon,
   PackageIcon,
-  SmartphoneIcon,
   StoreIcon,
   UtensilsCrossedIcon,
   WalletIcon,
