@@ -5,6 +5,7 @@ import { getRedisPublisher } from "@/lib/redis";
 export const CHANNELS = {
   VENTAS: "ventas",
   STOCK_ALERTS: "stock-alerts",
+  ENCOMENDAS: "encomendas",
 } as const;
 
 export type StockAlertProducto = {
@@ -97,4 +98,26 @@ export type VentaEvent = {
 
 export async function publishVentaEvent(venta: VentaEvent) {
   await getRedisPublisher().publish(CHANNELS.VENTAS, JSON.stringify(venta));
+}
+
+/** Encomenda como a Fábrica a recebe pelo SSE. */
+export type EncomendaEvent = {
+  id: string;
+  codigo: string;
+  nombreCliente: string;
+  telefone: string | null;
+  /** Quando o cliente vai retirar (ISO). */
+  retiradaEm: string;
+  notas: string | null;
+  estado: "RECIBIDO" | "EN_PREPARACION" | "LISTO" | "ENTREGADO";
+  createdAt: string;
+  estadoDesde: string;
+  tempos: TemposPedido;
+  items: VentaEventItem[];
+  /** Encomenda cancelada: a tela tira o cartão. */
+  removida?: boolean;
+};
+
+export async function publishEncomendaEvent(encomenda: EncomendaEvent) {
+  await getRedisPublisher().publish(CHANNELS.ENCOMENDAS, JSON.stringify(encomenda));
 }

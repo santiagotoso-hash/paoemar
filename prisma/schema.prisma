@@ -16,24 +16,71 @@ model Categoria {
 }
 
 model Producto {
-  id           String        @id @default(cuid())
-  codigo       String        @unique
-  nombre       String
-  categoriaId  String
-  precio       Decimal
-  tipoUnidad   TipoUnidad    @default(UNIDAD)
-  descripcion  String?
-  stockActual  Decimal
-  stockMinimo  Decimal       @default(5)
-  imagenUrl    String?
-  activo       Boolean       @default(true)
-  categoria    Categoria     @relation(fields: [categoriaId], references: [id])
-  ventaItems   VentaItem[]
-  comandaItems ComandaItem[]
-  adicionais   Adicional[]
-  gruposOpcion GrupoOpcion[]
+  id             String          @id @default(cuid())
+  codigo         String          @unique
+  nombre         String
+  categoriaId    String
+  precio         Decimal
+  tipoUnidad     TipoUnidad      @default(UNIDAD)
+  descripcion    String?
+  stockActual    Decimal
+  stockMinimo    Decimal         @default(5)
+  imagenUrl      String?
+  activo         Boolean         @default(true)
+  categoria      Categoria       @relation(fields: [categoriaId], references: [id])
+  ventaItems     VentaItem[]
+  comandaItems   ComandaItem[]
+  adicionais     Adicional[]
+  gruposOpcion   GrupoOpcion[]
   /// Ficha técnica: se tiver linhas, a venda baixa os insumos e não usa stockActual.
-  receita      ReceitaItem[]
+  receita        ReceitaItem[]
+  /// Pode ser pedido por encomenda (aparece na lista da tela de encomendas e vai para a Fábrica).
+  encomendavel   Boolean         @default(false)
+  encomendaItems EncomendaItem[]
+}
+
+/// Pedido por encomenda: produzido na Fábrica para retirada numa data e hora combinadas.
+model Encomenda {
+  id            String          @id @default(cuid())
+  codigo        String          @unique
+  nombreCliente String
+  telefone      String?
+  retiradaEm    DateTime
+  notas         String?
+  estado        EstadoVenta     @default(RECIBIDO)
+  creadaEn      DateTime        @default(now())
+  /// Quando o estado mudou pela última vez.
+  estadoDesde   DateTime        @default(now())
+  emProducaoEm  DateTime?
+  prontoEm      DateTime?
+  entregueEm    DateTime?
+  /// Cliente cadastrado (opcional: dá para encomendar só com um nome digitado).
+  clienteId     String?
+  cliente       Cliente?        @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  items         EncomendaItem[]
+}
+
+/// Cliente das encomendas (pousadas, mercados…).
+model Cliente {
+  id         String      @id @default(cuid())
+  nombre     String
+  endereco   String?
+  telefone   String?
+  email      String?
+  cnpj       String?
+  notas      String?
+  criadoEm   DateTime    @default(now())
+  encomendas Encomenda[]
+}
+
+model EncomendaItem {
+  id          String    @id @default(cuid())
+  encomendaId String
+  productoId  String
+  cantidad    Decimal
+  notas       String?
+  encomenda   Encomenda @relation(fields: [encomendaId], references: [id], onDelete: Cascade)
+  producto    Producto  @relation(fields: [productoId], references: [id])
 }
 
 /// Grupo de escolha única ligado a um produto (ex.: recheio da tapioca).

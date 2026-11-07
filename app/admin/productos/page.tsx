@@ -19,6 +19,7 @@ export default async function ProductosPage() {
     stockActual: p.stockActual.toString(),
     stockMinimo: p.stockMinimo.toString(),
     activo: p.activo,
+    encomendavel: p.encomendavel,
     receita: p.receita.map((r) => ({ insumoId: r.insumoId, quantidade: r.quantidade.toString() })),
   }));
 

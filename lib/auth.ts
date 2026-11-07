@@ -1,6 +1,6 @@
 import { currentUser, clerkClient } from "@clerk/nextjs/server";
 
-export const ROLES = ["admin", "superadmin", "user", "cajero", "cocina", "mostrador"] as const;
+export const ROLES = ["admin", "superadmin", "user", "cajero", "cocina", "fabrica", "mostrador"] as const;
 export type Role = (typeof ROLES)[number];
 
 /**
@@ -14,6 +14,8 @@ export const ROUTE_ROLES: Record<string, Role[]> = {
   "/comandas": ["admin", "superadmin", "mostrador"],
   "/mesas": ["admin", "superadmin", "mostrador"],
   "/cocina": ["admin", "superadmin", "cocina"],
+  "/fabrica": ["admin", "superadmin", "fabrica"],
+  "/encomendas": ["admin", "superadmin", "mostrador"],
 };
 
 const AUTO_ADMIN_EMAILS = (process.env.ADMIN_AUTO_EMAILS ?? "")
