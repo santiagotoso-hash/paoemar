@@ -5,6 +5,8 @@ import {
   WalletIcon,
   ClipboardListIcon,
   ChefHatIcon,
+  CalendarClockIcon,
+  FactoryIcon,
   type LucideIcon,
 } from "lucide-react";
 import { Landing } from "@/components/landing";
@@ -46,6 +48,20 @@ const SECCIONES: { href: string; label: string; descripcion: string; icon: Lucid
     descripcion: "Pedidos ao vivo, de recebido a entregue",
     icon: ChefHatIcon,
     roles: ROUTE_ROLES["/cocina"],
+  },
+  {
+    href: "/encomendas",
+    label: "Encomendas",
+    descripcion: "Cadastre pedidos por encomenda, com data e hora de retirada",
+    icon: CalendarClockIcon,
+    roles: ROUTE_ROLES["/encomendas"],
+  },
+  {
+    href: "/fabrica",
+    label: "Fábrica",
+    descripcion: "Produção das encomendas, por data de retirada",
+    icon: FactoryIcon,
+    roles: ROUTE_ROLES["/fabrica"],
   },
 ];
 

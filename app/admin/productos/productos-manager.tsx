@@ -45,6 +45,7 @@ type Producto = {
   stockActual: string;
   stockMinimo: string;
   activo: boolean;
+  encomendavel: boolean;
   receita: LinhaReceita[];
 };
 
@@ -161,12 +162,13 @@ function ProductoForm({
   const [descripcion, setDescripcion] = useState(producto?.descripcion ?? "");
   const [stockActual, setStockActual] = useState(producto?.stockActual ?? "0");
   const [stockMinimo, setStockMinimo] = useState(producto?.stockMinimo ?? "5");
+  const [encomendavel, setEncomendavel] = useState(producto?.encomendavel ?? false);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    const payload = { codigo, nombre, categoriaId, precio, tipoUnidad, descripcion, stockActual, stockMinimo };
+    const payload = { codigo, nombre, categoriaId, precio, tipoUnidad, descripcion, stockActual, stockMinimo, encomendavel };
     try {
       if (producto) {
         await editarProducto(producto.id, payload);
@@ -254,6 +256,22 @@ function ProductoForm({
         <Textarea id="descripcion" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} />
       </div>
 
+      <label htmlFor="encomendavel" className="flex cursor-pointer items-start gap-2 text-sm">
+        <input
+          id="encomendavel"
+          type="checkbox"
+          checked={encomendavel}
+          onChange={(e) => setEncomendavel(e.target.checked)}
+          className="mt-0.5 size-4 accent-primary"
+        />
+        <span>
+          Pode ser encomendado
+          <span className="block text-xs text-muted-foreground">
+            O produto aparece na lista da tela de Encomendas e vai para a Fábrica.
+          </span>
+        </span>
+      </label>
+
       <DialogFooter>
         <Button type="submit" disabled={loading}>
           {loading ? "Salvando..." : "Salvar"}
@@ -309,6 +327,7 @@ export function ProductosManager({
             <TableHead>Categoria</TableHead>
             <TableHead>Preço</TableHead>
             <TableHead>Estoque</TableHead>
+            <TableHead>Encomenda</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="text-right">Ações</TableHead>
           </TableRow>
@@ -332,6 +351,7 @@ export function ProductosManager({
                     </span>
                   )}
                 </TableCell>
+                <TableCell>{p.encomendavel ? "Sim" : ""}</TableCell>
                 <TableCell>
                   <Badge variant={p.activo ? "default" : "outline"}>
                     {p.activo ? "Ativo" : "Inativo"}

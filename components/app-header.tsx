@@ -10,6 +10,8 @@ const NAV_ITEMS = [
   { href: "/caja", label: "Caixa", roles: ROUTE_ROLES["/caja"] },
   { href: "/mesas", label: "Mesas", roles: ROUTE_ROLES["/mesas"] },
   { href: "/cocina", label: "Cozinha", roles: ROUTE_ROLES["/cocina"] },
+  { href: "/encomendas", label: "Encomendas", roles: ROUTE_ROLES["/encomendas"] },
+  { href: "/fabrica", label: "Fábrica", roles: ROUTE_ROLES["/fabrica"] },
 ];
 
 export async function AppHeader() {
