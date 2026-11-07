@@ -92,7 +92,7 @@ export function PosManager({
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+    <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
       <div>
         <h1 className="mb-4 text-xl font-semibold">Venda no balcão</h1>
         <Tabs defaultValue={categorias[0]?.id}>
@@ -132,7 +132,7 @@ export function PosManager({
         </Tabs>
       </div>
 
-      <div className="flex h-fit flex-col gap-4 rounded-lg border p-4">
+      <div className="flex h-fit flex-col gap-4 rounded-lg border p-4 lg:order-first">
         <h2 className="font-semibold">Carrinho</h2>
 
         {cartItems.length === 0 ? (
