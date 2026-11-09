@@ -69,6 +69,8 @@ export async function publishStockAlerts() {
 
 export type VentaEventItem = {
   productoNombre: string;
+  /** Só nas encomendas: permite reabrir o item para edição. */
+  productoId?: string;
   cantidad: string;
   notas: string | null;
   /** Marcações do produto para impressão de ticket (Admin → Produtos). */
@@ -119,6 +121,8 @@ export type EncomendaEvent = {
   items: VentaEventItem[];
   /** Encomenda cancelada: a tela tira o cartão. */
   removida?: boolean;
+  /** Enviada à Fábrica. Falso = rascunho (só aparece na tela de encomendas). */
+  confirmada: boolean;
 };
 
 export async function publishEncomendaEvent(encomenda: EncomendaEvent) {

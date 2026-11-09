@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CalendarClock, Minus, Phone, Plus, Trash2, Users } from "lucide-react";
+import { CalendarClock, Check, History, Minus, Pencil, Phone, Plus, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +20,7 @@ import {
 import type { EncomendaEvent } from "@/lib/realtime";
 import { formatHora } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { cancelarEncomenda, criarEncomenda } from "./actions";
+import { cancelarEncomenda, confirmarEncomenda, criarEncomenda, editarEncomenda } from "./actions";
 
 type Produto = { id: string; nombre: string; categoria: string; kg: boolean };
 type Cliente = { id: string; nombre: string; telefone: string | null };
@@ -49,33 +49,54 @@ function rotuloRetirada(iso: string) {
   return `${quando} ${formatHora(iso)}`;
 }
 
-/** "2026-11-10T08:30" no horário de Brasília para o `min` do campo de data. */
+const horaChave = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: FUSO });
+
+/** Instante no horário de Brasília no formato do campo de data e hora: "2026-11-10T08:30". */
+function localSP(d: Date) {
+  return `${diaChave.format(d)}T${horaChave.format(d)}`;
+}
+
+/** Agora, para o `min` do campo de data. */
 function agoraLocalSP() {
-  const d = new Date();
-  const dia = diaChave.format(d);
-  const hora = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: FUSO }).format(d);
-  return `${dia}T${hora}`;
+  return localSP(new Date());
 }
 
 function NovaEncomendaForm({
-  produtos,
+  produtos: produtosDisponiveis,
   clientes,
+  encomenda,
   onDone,
   onSujo,
 }: {
   produtos: Produto[];
   clientes: Cliente[];
+  /** Presente = edição de um rascunho; ausente = encomenda nova. */
+  encomenda?: EncomendaEvent;
   onDone: () => void;
-  /** Avisa se o formulário já tem algo preenchido (para confirmar antes de fechar). */
+  /** Avisa se o formulário tem alterações (para confirmar antes de fechar). */
   onSujo: (sujo: boolean) => void;
 }) {
-  const [nombreCliente, setNombreCliente] = useState("");
-  const [telefone, setTelefone] = useState("");
-  const [retiradaEm, setRetiradaEm] = useState("");
-  const [notas, setNotas] = useState("");
+  const [nombreCliente, setNombreCliente] = useState(encomenda?.nombreCliente ?? "");
+  const [telefone, setTelefone] = useState(encomenda?.telefone ?? "");
+  const [retiradaEm, setRetiradaEm] = useState(encomenda ? localSP(new Date(encomenda.retiradaEm)) : "");
+  const [notas, setNotas] = useState(encomenda?.notas ?? "");
   const [busca, setBusca] = useState("");
-  const [qtds, setQtds] = useState<Record<string, number>>({});
+  const [qtds, setQtds] = useState<Record<string, number>>(() => {
+    const inicial: Record<string, number> = {};
+    for (const i of encomenda?.items ?? []) {
+      if (i.productoId) inicial[i.productoId] = (inicial[i.productoId] ?? 0) + Number(i.cantidad);
+    }
+    return inicial;
+  });
   const [loading, setLoading] = useState(false);
+
+  // Itens da encomenda cujo produto saiu da lista de encomendáveis continuam aparecendo (para poder removê-los).
+  const produtos = useMemo(() => {
+    const extras: Produto[] = (encomenda?.items ?? [])
+      .filter((i) => i.productoId && !produtosDisponiveis.some((p) => p.id === i.productoId))
+      .map((i) => ({ id: i.productoId!, nombre: i.productoNombre, categoria: "Indisponível", kg: false }));
+    return [...produtosDisponiveis, ...extras];
+  }, [produtosDisponiveis, encomenda]);
 
   // Nome igual ao de um cliente cadastrado = cliente escolhido; qualquer outro nome vale como digitado.
   const clienteEscolhido = useMemo(
@@ -83,8 +104,13 @@ function NovaEncomendaForm({
     [clientes, nombreCliente]
   );
 
-  // O telefone acompanha o cliente escolhido, a não ser que tenha sido digitado à mão.
-  const [telefoneManual, setTelefoneManual] = useState(false);
+  // O telefone acompanha o cliente escolhido, a não ser que tenha sido digitado à mão. Na edição, um
+  // telefone diferente do cadastro do cliente conta como digitado à mão e não é sobrescrito.
+  const [telefoneManual, setTelefoneManual] = useState(() => {
+    if (!encomenda?.telefone) return false;
+    const c = clientes.find((x) => x.nombre.toLowerCase() === encomenda.nombreCliente.trim().toLowerCase());
+    return encomenda.telefone !== c?.telefone;
+  });
 
   function handleCliente(valor: string) {
     setNombreCliente(valor);
@@ -93,7 +119,10 @@ function NovaEncomendaForm({
     setTelefone(c?.telefone ?? "");
   }
 
-  const sujo = !!(nombreCliente.trim() || telefone.trim() || retiradaEm || notas.trim() || Object.keys(qtds).length);
+  // "Sujo" = diferente do que o formulário tinha ao abrir (vazio, numa encomenda nova).
+  const instantaneo = JSON.stringify({ nombreCliente: nombreCliente.trim(), telefone: telefone.trim(), retiradaEm, notas: notas.trim(), qtds });
+  const inicial = useRef(instantaneo);
+  const sujo = instantaneo !== inicial.current;
   useEffect(() => {
     onSujo(sujo);
   }, [sujo, onSujo]);
@@ -119,19 +148,24 @@ function NovaEncomendaForm({
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await criarEncomenda({
+      const dados = {
         nombreCliente,
         clienteId: clienteEscolhido?.id,
         telefone,
         retiradaEm,
         notas,
         items: escolhidos.map(([productoId, cantidad]) => ({ productoId, cantidad })),
-      });
+      };
+      const res = encomenda ? await editarEncomenda(encomenda.id, dados) : await criarEncomenda(dados);
       if (!res.ok) {
         toast.error(res.error);
         return;
       }
-      toast.success(`Encomenda ${res.codigo} enviada para a Fábrica`);
+      toast.success(
+        encomenda
+          ? `Encomenda ${res.codigo} atualizada.`
+          : `Encomenda ${res.codigo} salva. Revise e confirme para enviar à Fábrica.`
+      );
       onDone();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao salvar a encomenda");
@@ -248,7 +282,7 @@ function NovaEncomendaForm({
 
       <DialogFooter>
         <Button type="submit" disabled={loading || escolhidos.length === 0}>
-          {loading ? "Enviando..." : "Enviar para a Fábrica"}
+          {loading ? "Salvando..." : encomenda ? "Salvar alterações" : "Salvar encomenda"}
         </Button>
       </DialogFooter>
     </form>
@@ -273,7 +307,35 @@ export function EncomendasManager({
     if (!abrir && formSujo && !window.confirm("Sair da encomenda? Os dados preenchidos serão perdidos.")) return;
     setAberto(abrir);
   }
+  const [editando, setEditando] = useState<EncomendaEvent | null>(null);
+  function handleFecharEdicao(abrir: boolean) {
+    if (abrir) return;
+    if (formSujo && !window.confirm("Sair da edição? As alterações feitas serão perdidas.")) return;
+    setEditando(null);
+  }
   const [cancelando, setCancelando] = useState<string | null>(null);
+  const [confirmando, setConfirmando] = useState<string | null>(null);
+
+  async function handleConfirmar(e: EncomendaEvent) {
+    if (
+      !window.confirm(
+        `Confirmar a encomenda ${e.codigo} de ${e.nombreCliente}? Ela será enviada para a Fábrica e não poderá mais ser editada.`
+      )
+    ) {
+      return;
+    }
+    setConfirmando(e.id);
+    try {
+      const res = await confirmarEncomenda(e.id);
+      if (!res.ok) toast.error(res.error);
+      else toast.success(`Encomenda ${e.codigo} enviada para a Fábrica`);
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao confirmar a encomenda");
+    } finally {
+      setConfirmando(null);
+    }
+  }
 
   // O andamento muda na Fábrica: recarrega a lista de tempos em tempos.
   useEffect(() => {
@@ -301,6 +363,10 @@ export function EncomendasManager({
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">Encomendas</h1>
         <div className="flex flex-wrap justify-end gap-2">
+          <Button variant="outline" nativeButton={false} render={<Link href="/encomendas/historico" />}>
+            <History />
+            Histórico
+          </Button>
           <Button variant="outline" nativeButton={false} render={<Link href="/encomendas/clientes" />}>
             <Users />
             Clientes
@@ -334,18 +400,18 @@ export function EncomendasManager({
         <ul className="flex flex-col gap-3">
           {encomendas.map((e) => (
             <li key={e.id} className={cn("flex flex-col gap-2 rounded-2xl border bg-card p-4", e.estado === "ENTREGADO" && "opacity-60")}>
-              <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
                 <p className="font-semibold">
                   {e.codigo} · {e.nombreCliente}
                 </p>
-                <span className="rounded-full bg-accent px-2.5 py-0.5 text-xs font-medium text-primary">
-                  {ESTADO_LABEL[e.estado]}
+                <span className="inline-flex items-center gap-1.5 text-sm font-medium">
+                  <CalendarClock className="size-4 text-primary" aria-hidden />
+                  Entrega {rotuloRetirada(e.retiradaEm)}
                 </span>
               </div>
-              <p className="flex flex-wrap items-center gap-x-3 text-sm text-muted-foreground">
-                <span className="inline-flex items-center gap-1">
-                  <CalendarClock className="size-4" aria-hidden />
-                  Retirada {rotuloRetirada(e.retiradaEm)}
+              <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                <span className="rounded-full bg-accent px-2.5 py-0.5 text-xs font-medium text-primary">
+                  {e.confirmada ? ESTADO_LABEL[e.estado] : "Rascunho · ainda não enviada"}
                 </span>
                 {e.telefone && (
                   <span className="inline-flex items-center gap-1">
@@ -363,21 +429,50 @@ export function EncomendasManager({
               </ul>
               {e.notas && <p className="text-sm text-muted-foreground">Obs.: {e.notas}</p>}
               {e.estado === "RECIBIDO" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="self-start"
-                  disabled={cancelando === e.id}
-                  onClick={() => handleCancelar(e)}
-                >
-                  <Trash2 />
-                  {cancelando === e.id ? "Cancelando..." : "Cancelar encomenda"}
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  {!e.confirmada && (
+                    <>
+                      <Button size="sm" disabled={confirmando === e.id} onClick={() => handleConfirmar(e)}>
+                        <Check />
+                        {confirmando === e.id ? "Confirmando..." : "Confirmar encomenda"}
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setEditando(e)}>
+                        <Pencil />
+                        Editar
+                      </Button>
+                    </>
+                  )}
+                  <Button variant="outline" size="sm" disabled={cancelando === e.id} onClick={() => handleCancelar(e)}>
+                    <Trash2 />
+                    {cancelando === e.id ? "Cancelando..." : "Cancelar encomenda"}
+                  </Button>
+                </div>
               )}
             </li>
           ))}
         </ul>
       )}
+
+      <Dialog open={!!editando} onOpenChange={handleFecharEdicao}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar encomenda {editando?.codigo}</DialogTitle>
+          </DialogHeader>
+          {editando && (
+            <NovaEncomendaForm
+              key={editando.id}
+              encomenda={editando}
+              produtos={produtos}
+              clientes={clientes}
+              onSujo={setFormSujo}
+              onDone={() => {
+                setEditando(null);
+                router.refresh();
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
