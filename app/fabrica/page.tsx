@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { inicioDoDiaSP } from "@/lib/format";
 import { encomendaInclude, encomendaParaEvento } from "@/lib/encomendas";
+import { lerConfigImpressora } from "@/lib/impressoras-db";
 import { FabricaBoard } from "./fabrica-board";
 
 export default async function FabricaPage() {
@@ -21,10 +22,13 @@ export default async function FabricaPage() {
     }),
   ]);
 
+  const impressora = await lerConfigImpressora("PRODUCAO");
+
   return (
     <FabricaBoard
       encomendasIniciais={ativas.map(encomendaParaEvento)}
       entreguesIniciais={entregues.map(encomendaParaEvento)}
+      impressora={impressora}
     />
   );
 }

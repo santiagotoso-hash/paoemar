@@ -1,6 +1,7 @@
 import type { EstadoVenta } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { inicioDoDiaSP } from "@/lib/format";
+import { lerConfigImpressora } from "@/lib/impressoras-db";
 import { numerosRondas, rondaCocinaInclude, rondaParaEvento } from "@/lib/rondas";
 import { CocinaBoard } from "./cocina-board";
 
@@ -59,6 +60,8 @@ export default async function CocinaPage() {
       productoNombre: i.producto.nombre,
       cantidad: i.cantidad.toString(),
       notas: i.notas,
+      imprimirCozinha: i.producto.imprimirCozinha,
+      imprimirProducao: i.producto.imprimirProducao,
     })),
   });
 
@@ -73,5 +76,7 @@ export default async function CocinaPage() {
     (b.tempos?.entregue ?? b.createdAt).localeCompare(a.tempos?.entregue ?? a.createdAt)
   );
 
-  return <CocinaBoard ventasIniciales={ativos} entreguesIniciais={entregues} />;
+  const impressora = await lerConfigImpressora("COZINHA");
+
+  return <CocinaBoard ventasIniciales={ativos} entreguesIniciais={entregues} impressora={impressora} />;
 }

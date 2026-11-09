@@ -16,6 +16,8 @@ const productoSchema = z.object({
   stockActual: z.coerce.number().min(0),
   stockMinimo: z.coerce.number().min(0),
   encomendavel: z.boolean().default(false),
+  imprimirCozinha: z.boolean().default(false),
+  imprimirProducao: z.boolean().default(false),
 });
 
 export async function crearProducto(input: unknown) {

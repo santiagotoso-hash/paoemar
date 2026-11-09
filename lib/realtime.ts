@@ -71,6 +71,9 @@ export type VentaEventItem = {
   productoNombre: string;
   cantidad: string;
   notas: string | null;
+  /** Marcações do produto para impressão de ticket (Admin → Produtos). */
+  imprimirCozinha?: boolean;
+  imprimirProducao?: boolean;
 };
 
 /** Linha do tempo de um pedido na cozinha. */

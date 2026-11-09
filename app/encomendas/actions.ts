@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole, ROUTE_ROLES } from "@/lib/auth";
 import { encomendaInclude, encomendaParaEvento, publicarEncomenda } from "@/lib/encomendas";
 import { publishEncomendaEvent } from "@/lib/realtime";
+import { enfileirarEncomenda } from "@/lib/fila-impressao";
 
 const encomendaSchema = z.object({
   nombreCliente: z.string().trim().min(1, "Informe o nome do cliente"),
@@ -72,7 +73,8 @@ export async function criarEncomenda(input: unknown): Promise<Resultado> {
           items: { create: data.items.map((i) => ({ productoId: i.productoId, cantidad: i.cantidad })) },
         },
       });
-      await publicarEncomenda(criada.id);
+      const evento = await publicarEncomenda(criada.id);
+      if (evento) await enfileirarEncomenda(evento);
       revalidatePath("/encomendas");
       revalidatePath("/fabrica");
       return { ok: true, codigo };

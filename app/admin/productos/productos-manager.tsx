@@ -46,6 +46,8 @@ type Producto = {
   stockMinimo: string;
   activo: boolean;
   encomendavel: boolean;
+  imprimirCozinha: boolean;
+  imprimirProducao: boolean;
   receita: LinhaReceita[];
 };
 
@@ -163,12 +165,14 @@ function ProductoForm({
   const [stockActual, setStockActual] = useState(producto?.stockActual ?? "0");
   const [stockMinimo, setStockMinimo] = useState(producto?.stockMinimo ?? "5");
   const [encomendavel, setEncomendavel] = useState(producto?.encomendavel ?? false);
+  const [imprimirCozinha, setImprimirCozinha] = useState(producto?.imprimirCozinha ?? false);
+  const [imprimirProducao, setImprimirProducao] = useState(producto?.imprimirProducao ?? false);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    const payload = { codigo, nombre, categoriaId, precio, tipoUnidad, descripcion, stockActual, stockMinimo, encomendavel };
+    const payload = { codigo, nombre, categoriaId, precio, tipoUnidad, descripcion, stockActual, stockMinimo, encomendavel, imprimirCozinha, imprimirProducao };
     try {
       if (producto) {
         await editarProducto(producto.id, payload);
@@ -272,6 +276,38 @@ function ProductoForm({
         </span>
       </label>
 
+      <label htmlFor="imprimirCozinha" className="flex cursor-pointer items-start gap-2 text-sm">
+        <input
+          id="imprimirCozinha"
+          type="checkbox"
+          checked={imprimirCozinha}
+          onChange={(e) => setImprimirCozinha(e.target.checked)}
+          className="mt-0.5 size-4 accent-primary"
+        />
+        <span>
+          Imprimir na cozinha
+          <span className="block text-xs text-muted-foreground">
+            O produto sai na impressora da cozinha quando for pedido.
+          </span>
+        </span>
+      </label>
+
+      <label htmlFor="imprimirProducao" className="flex cursor-pointer items-start gap-2 text-sm">
+        <input
+          id="imprimirProducao"
+          type="checkbox"
+          checked={imprimirProducao}
+          onChange={(e) => setImprimirProducao(e.target.checked)}
+          className="mt-0.5 size-4 accent-primary"
+        />
+        <span>
+          Imprimir em produção
+          <span className="block text-xs text-muted-foreground">
+            O produto sai na impressora da produção (Fábrica), que é outra impressora.
+          </span>
+        </span>
+      </label>
+
       <DialogFooter>
         <Button type="submit" disabled={loading}>
           {loading ? "Salvando..." : "Salvar"}
@@ -328,6 +364,8 @@ export function ProductosManager({
             <TableHead>Preço</TableHead>
             <TableHead>Estoque</TableHead>
             <TableHead>Encomenda</TableHead>
+            <TableHead>Cozinha</TableHead>
+            <TableHead>Produção</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="text-right">Ações</TableHead>
           </TableRow>
@@ -352,6 +390,8 @@ export function ProductosManager({
                   )}
                 </TableCell>
                 <TableCell>{p.encomendavel ? "Sim" : ""}</TableCell>
+                <TableCell>{p.imprimirCozinha ? "Sim" : ""}</TableCell>
+                <TableCell>{p.imprimirProducao ? "Sim" : ""}</TableCell>
                 <TableCell>
                   <Badge variant={p.activo ? "default" : "outline"}>
                     {p.activo ? "Ativo" : "Inativo"}
