@@ -16,7 +16,8 @@ const COOKIE = "atendente";
 const DURACAO_SEG = 60 * 60 * 12; // um turno
 
 function secret() {
-  const s = process.env.ATENDENTE_SESSION_SECRET ?? process.env.CLERK_SECRET_KEY;
+  // `||` e não `??`: variável criada mas vazia (ex.: copiada do .env.example) também cai no CLERK_SECRET_KEY.
+  const s = process.env.ATENDENTE_SESSION_SECRET || process.env.CLERK_SECRET_KEY;
   if (!s) throw new Error("Falta ATENDENTE_SESSION_SECRET");
   return s;
 }
