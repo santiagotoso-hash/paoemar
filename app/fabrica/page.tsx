@@ -9,13 +9,13 @@ export default async function FabricaPage() {
 
   const [ativas, entregues] = await Promise.all([
     prisma.encomenda.findMany({
-      where: { estado: { in: ["RECIBIDO", "EN_PREPARACION", "LISTO"] } },
+      where: { confirmadaEm: { not: null }, estado: { in: ["RECIBIDO", "EN_PREPARACION", "LISTO"] } },
       include: encomendaInclude,
       orderBy: { retiradaEm: "asc" },
     }),
     // Retiradas hoje (lista recolhida).
     prisma.encomenda.findMany({
-      where: { estado: "ENTREGADO", estadoDesde: { gte: hoje } },
+      where: { confirmadaEm: { not: null }, estado: "ENTREGADO", estadoDesde: { gte: hoje } },
       include: encomendaInclude,
       orderBy: { estadoDesde: "desc" },
       take: 100,

@@ -19,6 +19,7 @@ export function encomendaParaEvento(e: EncomendaComItens): EncomendaEvent {
     estado: e.estado,
     createdAt: e.creadaEn.toISOString(),
     estadoDesde: e.estadoDesde.toISOString(),
+    confirmada: e.confirmadaEm !== null,
     tempos: {
       lancado: e.creadaEn.toISOString(),
       emPreparo: e.emProducaoEm?.toISOString() ?? null,
@@ -27,6 +28,7 @@ export function encomendaParaEvento(e: EncomendaComItens): EncomendaEvent {
     },
     items: e.items.map((i) => ({
       productoNombre: i.producto.nombre,
+      productoId: i.productoId,
       cantidad: i.cantidad.toString(),
       notas: i.notas,
     })),

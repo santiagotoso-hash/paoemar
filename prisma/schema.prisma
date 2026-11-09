@@ -58,6 +58,8 @@ model Encomenda {
   emProducaoEm  DateTime?
   prontoEm      DateTime?
   entregueEm    DateTime?
+  /// Enviada à Fábrica. Nulo = rascunho: ainda pode ser editada e não aparece na Fábrica.
+  confirmadaEm  DateTime?
   /// Cliente cadastrado (opcional: dá para encomendar só com um nome digitado).
   clienteId     String?
   cliente       Cliente?        @relation(fields: [clienteId], references: [id], onDelete: SetNull)

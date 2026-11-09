@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Mail, MapPin, Pencil, Phone, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, History, Mail, MapPin, Pencil, Phone, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -193,6 +193,16 @@ export function ClientesManager({ clientes }: { clientes: Cliente[] }) {
                 )}
               </div>
               {c.notas && <p className="text-sm">{c.notas}</p>}
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-1 self-start"
+                nativeButton={false}
+                render={<Link href={`/encomendas/historico?clienteId=${c.id}`} />}
+              >
+                <History />
+                Histórico de encomendas
+              </Button>
             </li>
           ))}
         </ul>
