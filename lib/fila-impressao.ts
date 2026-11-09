@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { DESTINOS, type Destino } from "@/lib/impressoras";
+import { DESTINOS_DE_PRODUTO, type ConfigImpressora, type Destino } from "@/lib/impressoras";
 import { lerConfigImpressora } from "@/lib/impressoras-db";
 import type { Ticket } from "@/lib/impressao";
 import type { EncomendaEvent, VentaEvent } from "@/lib/realtime";
@@ -31,7 +31,7 @@ async function enfileirar(destino: Destino, ticket: Ticket, chave: string) {
  */
 export async function enfileirarPedido(evento: VentaEvent, chave: string) {
   try {
-    for (const destino of DESTINOS) {
+    for (const destino of DESTINOS_DE_PRODUTO) {
       const config = await lerConfigImpressora(destino);
       if (!config.ativa) continue;
       const ticket = ticketDePedido(evento, destino, config);
@@ -40,6 +40,20 @@ export async function enfileirarPedido(evento: VentaEvent, chave: string) {
   } catch (err) {
     console.error("Falha ao enfileirar ticket do pedido", chave, err);
   }
+}
+
+/**
+ * Conta (pré-conta ou recibo) na impressora do Caixa. `montar` recebe a configuração da
+ * impressora (largura do papel e vias). Devolve "desativada" quando o Caixa não está ativo.
+ */
+export async function enfileirarNoCaixa(
+  chave: string,
+  montar: (config: ConfigImpressora) => Ticket
+): Promise<"ok" | "desativada"> {
+  const config = await lerConfigImpressora("CAIXA");
+  if (!config.ativa) return "desativada";
+  await enfileirar("CAIXA", montar(config), chave);
+  return "ok";
 }
 
 /** Encomenda nova: ticket completo na impressora da produção. */

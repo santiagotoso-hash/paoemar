@@ -60,7 +60,7 @@ function ImpressoraForm({ inicial }: { inicial: ConfigImpressora }) {
         />
         <span>
           Impressora ativa
-          <span className="block text-xs text-muted-foreground">Desligada, nenhum ticket sai para este destino.</span>
+          <span className="block text-xs text-muted-foreground">Se desmarcar, nenhum ticket sai para esta impressora.</span>
         </span>
       </label>
 

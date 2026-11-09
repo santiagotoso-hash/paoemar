@@ -1,6 +1,6 @@
 import type { EncomendaEvent, VentaEvent } from "@/lib/realtime";
 import { formatDataHora, formatHora } from "@/lib/format";
-import { TEXTO_DESTINO, type ConfigImpressora, type Destino } from "@/lib/impressoras";
+import { TEXTO_DESTINO, type ConfigImpressora, type DestinoDeProduto } from "@/lib/impressoras";
 import type { Ticket } from "@/lib/impressao";
 
 function separador(larguraMm: number) {
@@ -16,7 +16,7 @@ function linhasDeItem(i: { productoNombre: string; cantidad: string; notas: stri
  * Ticket de um pedido de mesa/balcão para a impressora do destino: só os itens marcados
  * no produto (cozinha ou produção). Sem itens marcados, não há o que imprimir (null).
  */
-export function ticketDePedido(v: VentaEvent, destino: Destino, config: ConfigImpressora): Ticket | null {
+export function ticketDePedido(v: VentaEvent, destino: DestinoDeProduto, config: ConfigImpressora): Ticket | null {
   const itens = v.items.filter((i) => (destino === "COZINHA" ? i.imprimirCozinha : i.imprimirProducao));
   if (itens.length === 0) return null;
 

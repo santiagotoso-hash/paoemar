@@ -12,7 +12,7 @@ sem precisar de nenhuma tela aberta.
    - `APP_URL`: endereço do sistema.
    - `PRINT_AGENT_TOKEN`: um texto longo e secreto. **Use o mesmo valor** na variável de ambiente
      `PRINT_AGENT_TOKEN` do servidor (Vercel → Settings → Environment Variables) e refaça o deploy.
-   - `DESTINOS`: `COZINHA`, `PRODUCAO` ou os dois, conforme as impressoras ligadas a este computador.
+   - `DESTINOS`: `COZINHA`, `PRODUCAO`, `CAIXA` ou mais de um (separados por vírgula), conforme as impressoras ligadas a este computador. Um destino sem impressora ativa em Admin → Impressoras é ignorado.
 4. No sistema, vá em **Admin → Impressoras**, ative a impressora e preencha:
    - Conexão **USB/Bluetooth** (impressora instalada no Windows): o nome dela **exatamente** como aparece
      em Configurações → Impressoras e scanners.
