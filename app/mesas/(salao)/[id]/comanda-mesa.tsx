@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Check, ChefHat, Clock, DoorOpen, Eye, Minus, NotebookPen, Plus, Send, Trash2, Users } from "lucide-react";
+import { ArrowLeft, Check, ChefHat, Clock, DoorOpen, Eye, Minus, NotebookPen, Plus, Printer, Send, Trash2, Users } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -28,7 +28,7 @@ import { useMesaSomenteLeitura } from "../../guarda-saida-mesa";
 import { ObservacaoSheet } from "../../observacao";
 import { CancelarItemSheet } from "./cancelar-item-sheet";
 import { LiberarMesaSheet } from "./liberar-mesa-sheet";
-import { alterarPessoas, alternarServico, fecharConta } from "../../actions";
+import { alterarPessoas, alternarServico, fecharConta, imprimirPreconta } from "../../actions";
 
 type Estado = "RECIBIDO" | "EN_PREPARACION" | "LISTO" | "ENTREGADO";
 
@@ -164,6 +164,25 @@ export function ComandaMesa({
     } catch {
       setServico(!valor);
       toast.error("Não foi possível alterar o serviço");
+    }
+  }
+
+  const [imprimindoPreconta, setImprimindoPreconta] = useState(false);
+
+  async function handlePreconta() {
+    setImprimindoPreconta(true);
+    try {
+      const res = await imprimirPreconta(mesa.id);
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success("Pré-conta enviada para a impressora do caixa");
+      if (pendentes.length > 0) toast.info("Os itens pendentes (ainda não lançados) não entram na pré-conta.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Não foi possível imprimir a pré-conta");
+    } finally {
+      setImprimindoPreconta(false);
     }
   }
 
@@ -365,6 +384,19 @@ export function ComandaMesa({
             <Contador valor={pessoas} onChange={handlePessoas} min={1} nome="pessoas na mesa" />
           )}
         </div>
+        {temLancados && (
+          <Button
+            type="button"
+            variant="outline"
+            size="touch"
+            className="mt-2 w-full"
+            onClick={handlePreconta}
+            disabled={imprimindoPreconta}
+          >
+            <Printer />
+            {imprimindoPreconta ? "Enviando..." : "Imprimir pré-conta"}
+          </Button>
+        )}
       </section>
 
       {/* Ações fixas (só para quem pode modificar a mesa) */}

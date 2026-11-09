@@ -20,7 +20,7 @@ if (existsSync(arquivoEnv)) {
 
 const APP_URL = (process.env.APP_URL ?? "").replace(/\/+$/, "");
 const TOKEN = process.env.PRINT_AGENT_TOKEN ?? "";
-const DESTINOS = (process.env.DESTINOS ?? "COZINHA,PRODUCAO").split(",").map((d) => d.trim()).filter(Boolean);
+const DESTINOS = (process.env.DESTINOS ?? "COZINHA,PRODUCAO,CAIXA").split(",").map((d) => d.trim()).filter(Boolean);
 const INTERVALO_MS = Number(process.env.INTERVALO_MS ?? 2000);
 const BYPASS_VERCEL = process.env.VERCEL_BYPASS ?? "";
 // SIMULAR=1 escreve o ticket na tela em vez de imprimir (para testar sem impressora).

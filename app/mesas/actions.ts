@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { camposPagamento, validarPagamento } from "@/lib/metodos-pago";
+import { BANDEIRA_LABEL, camposPagamento, METODO_PAGO_LABEL, validarPagamento } from "@/lib/metodos-pago";
 import { Prisma } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -19,7 +19,8 @@ import {
 import { redondear2 } from "@/lib/format";
 import { nomeMesa, TAXA_SERVICO, totalItem } from "@/lib/mesas";
 import { publishVentaEvent } from "@/lib/realtime";
-import { enfileirarPedido } from "@/lib/fila-impressao";
+import { enfileirarNoCaixa, enfileirarPedido } from "@/lib/fila-impressao";
+import { ticketDeConta, type ItemConta } from "@/lib/ticket-caixa";
 import { getRedisPublisher } from "@/lib/redis";
 import { numeroRonda, numerosRondas, rondaCocinaInclude, rondaParaEvento } from "@/lib/rondas";
 import { bloquearComandaAbierta, crearVentaTx, publicarVenta } from "@/lib/ventas";
@@ -422,6 +423,104 @@ const fecharContaSchema = z
  * pela tela antiga de comandas (sem rodada) viram uma rodada agora e vão para a cozinha.
  * Venda e fechamento acontecem na mesma transação, com a comanda travada.
  */
+/** Opção, adicionais e observação de um item, uma por linha, para o ticket do caixa. */
+function detalhesDoItem(partes: (string | null | undefined)[], adicionais: { nombre: string }[]) {
+  return [...partes, ...adicionais.map((a) => `+ ${a.nombre}`)].filter((p): p is string => !!p);
+}
+
+/** Recibo do fechamento da conta na impressora do Caixa (sem efeito se o Caixa estiver desativado). */
+async function imprimirRecibo(vendaId: string) {
+  const v = await prisma.venta.findUnique({
+    where: { id: vendaId },
+    include: {
+      items: { orderBy: { id: "asc" }, include: { producto: { select: { nombre: true } }, adicionais: true } },
+      comanda: { select: { personas: true, atendente: { select: { nombre: true } } } },
+    },
+  });
+  if (!v) return;
+
+  const itens: ItemConta[] = v.items.map((i) => ({
+    cantidad: Number(i.cantidad),
+    nome: i.producto.nombre,
+    detalhes: detalhesDoItem([i.notas], i.adicionais),
+    total: Number(i.total),
+  }));
+  const bandeira = v.bandeira ? ` · ${BANDEIRA_LABEL[v.bandeira] ?? v.bandeira}` : "";
+
+  await enfileirarNoCaixa(`fechamento:${v.id}`, (config) =>
+    ticketDeConta({
+      titulo: "CONTA FECHADA",
+      mesa: v.nombreCliente,
+      atendente: v.comanda?.atendente?.nombre,
+      emitidoEm: v.createdAt,
+      pessoas: v.comanda?.personas,
+      itens,
+      consumo: Number(v.subtotal),
+      servico: Number(v.servicio),
+      // A venda guarda o desconto como valor positivo: aqui desconto é negativo e adicional é positivo.
+      ajuste: -Number(v.descuento),
+      total: Number(v.total),
+      pagamento: `${METODO_PAGO_LABEL[v.metodoPago] ?? v.metodoPago}${bandeira}`,
+      rodape: "Não é documento fiscal",
+      larguraMm: config.larguraMm,
+      copias: config.copias,
+    })
+  );
+}
+
+/** Pré-conta: o que já foi lançado na mesa, na impressora do Caixa, sem fechar a conta. */
+export async function imprimirPreconta(comandaId: string): Promise<Resultado> {
+  await requireRole(ROUTE_ROLES["/mesas"]);
+  await requireAtendente();
+
+  const comanda = await prisma.comanda.findUnique({
+    where: { id: comandaId },
+    include: {
+      atendente: { select: { nombre: true } },
+      items: { orderBy: { id: "asc" }, include: { producto: { select: { nombre: true } }, adicionais: true } },
+    },
+  });
+  if (!comanda || comanda.estado !== "ABIERTA") return { ok: false, error: "Esta mesa não está aberta" };
+  if (comanda.items.length === 0) return { ok: false, error: "Nenhum item lançado nesta mesa" };
+
+  const itens: ItemConta[] = comanda.items.map((i) => ({
+    cantidad: Number(i.cantidad),
+    nome: i.producto.nombre,
+    detalhes: detalhesDoItem([i.opcion, i.notas && `obs: ${i.notas}`], i.adicionais),
+    total: redondear2(totalItem(i)),
+  }));
+  const consumo = redondear2(itens.reduce((acc, i) => acc + i.total, 0));
+  const servico = comanda.servicio ? redondear2(consumo * TAXA_SERVICO) : 0;
+
+  try {
+    // Chave com a hora: dá para imprimir a pré-conta mais de uma vez.
+    const resultado = await enfileirarNoCaixa(`preconta:${comandaId}:${Date.now()}`, (config) =>
+      ticketDeConta({
+        titulo: "PRÉ-CONTA",
+        mesa: nomeMesa(comanda.tipo, comanda.codigo),
+        atendente: comanda.atendente?.nombre,
+        emitidoEm: new Date(),
+        pessoas: comanda.personas,
+        itens,
+        consumo,
+        servico,
+        ajuste: 0,
+        total: redondear2(consumo + servico),
+        rodape: "Pré-conta: não é documento fiscal",
+        larguraMm: config.larguraMm,
+        copias: config.copias,
+      })
+    );
+    if (resultado === "desativada") {
+      return { ok: false, error: "A impressora do caixa está desativada. Ative em Admin → Impressoras." };
+    }
+  } catch (err) {
+    console.error("imprimirPreconta: falha ao enfileirar", err);
+    return { ok: false, error: "Não foi possível enviar para a impressora do caixa" };
+  }
+  return { ok: true };
+}
+
 export async function fecharConta(comandaId: string, input: unknown): Promise<Resultado> {
   const { userId } = await requireRole(ROUTE_ROLES["/mesas"]);
   const atendente = await requireAtendente();
@@ -512,6 +611,12 @@ export async function fecharConta(comandaId: string, input: unknown): Promise<Re
     if (res.rondaAntesId) await publicarRonda(res.rondaAntesId);
   } catch (err) {
     console.error("fecharConta: falha ao publicar eventos", err);
+  }
+  // Recibo na impressora do Caixa. Falhar aqui também não pode virar erro: a conta já foi cobrada.
+  try {
+    await imprimirRecibo(res.venta.id);
+  } catch (err) {
+    console.error("fecharConta: falha ao enfileirar o recibo", err);
   }
 
   revalidatePath("/mesas");

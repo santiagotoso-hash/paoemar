@@ -466,6 +466,7 @@ enum TipoMovimiento {
 enum DestinoImpressao {
   COZINHA
   PRODUCAO
+  CAIXA
 }
 
 enum ConexaoImpressora {

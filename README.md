@@ -85,7 +85,7 @@ Para demonstrações, os e-mails em `ADMIN_AUTO_EMAILS` viram `admin` sozinhos n
 
 ## Impressão de tickets
 
-Os tickets saem **sem nenhuma tela aberta**. O servidor está na internet e a impressora está na rede local da loja, então um programa no computador da loja faz a ponte.
+Os tickets saem **sem nenhuma tela aberta**. O servidor está na internet e a impressora está na rede local da loja, então um programa no computador da loja faz a ponte. São três impressoras configuráveis: **Cozinha**, **Produção** e **Caixa**.
 
 **Fluxo**
 1. Ao **lançar uma rodada** nas mesas, fechar uma **venda no balcão** ou criar uma **encomenda**, o servidor grava um ticket na fila para cada impressora que tenha itens marcados. Cada ticket tem uma chave única por pedido e destino, então um reenvio nunca imprime em duplicidade.
@@ -95,6 +95,11 @@ Os tickets saem **sem nenhuma tela aberta**. O servidor está na internet e a im
 - A impressora da **Cozinha** recebe os itens dos produtos marcados "Imprimir na cozinha".
 - A impressora da **Produção** recebe os itens marcados "Imprimir em produção" e cada **encomenda** nova (com cliente, telefone, horário de retirada e observações).
 - Um produto pode estar marcado nas duas ou em nenhuma. Sem marcação, não gera ticket.
+- A impressora do **Caixa** imprime **contas**, não itens de produto:
+  - **Pré-conta:** botão "Imprimir pré-conta" na tela da mesa. Sai o que já foi lançado (itens, consumo, serviço, total e valor por pessoa), sem fechar a conta. Itens pendentes, ainda não lançados, não entram. Pode ser impressa quantas vezes for preciso.
+  - **Recibo do fechamento:** sai sozinho ao fechar a conta de uma mesa, com desconto ou adicional, forma de pagamento (e bandeira do cartão) e total.
+  - Os dois são "não é documento fiscal". Se a impressora do Caixa estiver desativada, o recibo é ignorado e o botão da pré-conta avisa para ativar em Admin → Impressoras.
+  - O recibo vale para o fechamento de **mesas**; a venda no balcão e as comandas antigas não imprimem recibo.
 
 **Configurar**
 1. Em **Admin → Impressoras**, ative a impressora e informe a conexão: **Rede (IP)** (IP e porta, normalmente 9100, recomendado) ou **USB/Bluetooth** (o nome exato da impressora no Windows). Defina a largura do papel (58 ou 80 mm) e o número de vias. O botão "Imprimir teste" usa o navegador do aparelho.
@@ -104,7 +109,7 @@ Os tickets saem **sem nenhuma tela aberta**. O servidor está na internet e a im
 
 **Instalar o agente (Windows)**
 1. Instale o Node.js 18 ou mais novo (de preferência para todos os usuários, em Program Files).
-2. Copie a pasta `agente-impressao` para o computador. Copie `.env.example` para `.env` e preencha `APP_URL` (o domínio fixo de produção, sem barra no final), `PRINT_AGENT_TOKEN` (o **mesmo** valor da Vercel) e `DESTINOS` (`COZINHA`, `PRODUCAO` ou os dois).
+2. Copie a pasta `agente-impressao` para o computador. Copie `.env.example` para `.env` e preencha `APP_URL` (o domínio fixo de produção, sem barra no final), `PRINT_AGENT_TOKEN` (o **mesmo** valor da Vercel) e `DESTINOS` (`COZINHA`, `PRODUCAO` e `CAIXA`, os que este computador atende, separados por vírgula).
 3. Teste com `SIMULAR=1` (mostra os tickets na tela, sem imprimir) e depois com `SIMULAR=0`: `node agente.mjs` ou `iniciar.bat`.
 4. Para rodar **escondido e iniciar junto com o Windows**, abra o PowerShell como administrador, entre na pasta e rode `.\instalar-servico.ps1`. O que acontece fica em `agente.log`. Para remover: `.\remover-servico.ps1`.
 
