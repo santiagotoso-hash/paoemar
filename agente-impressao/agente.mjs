@@ -1,7 +1,7 @@
 // Programa de impressão da loja: busca no servidor os tickets pendentes e imprime.
 // Sem dependências: precisa só do Node 18 ou mais novo. Veja o LEIAME.md.
 import { execFile } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync, renameSync, statSync } from "node:fs";
 import { unlink, writeFile } from "node:fs/promises";
 import net from "node:net";
 import { tmpdir } from "node:os";
@@ -31,7 +31,19 @@ if (!APP_URL || !TOKEN) {
   process.exit(1);
 }
 
-const log = (...a) => console.log(new Date().toLocaleTimeString("pt-BR"), ...a);
+// Escreve na tela e também no agente.log (o que sobra quando roda escondido, sem janela).
+const ARQUIVO_LOG = path.join(pasta, "agente.log");
+const log = (...a) => {
+  const linha = `${new Date().toLocaleString("pt-BR")} ${a.join(" ")}`;
+  console.log(linha);
+  try {
+    // Passou de 1 MB: guarda o antigo e recomeça, para o arquivo não crescer para sempre.
+    if (existsSync(ARQUIVO_LOG) && statSync(ARQUIVO_LOG).size > 1_000_000) renameSync(ARQUIVO_LOG, `${ARQUIVO_LOG}.antigo`);
+    appendFileSync(ARQUIVO_LOG, linha + "\n");
+  } catch {
+    // Sem permissão para escrever o log não pode derrubar a impressão.
+  }
+};
 
 // ---------- Montagem do texto ----------
 

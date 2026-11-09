@@ -30,6 +30,30 @@ Depois volte para `SIMULAR=0`.
 - Para abrir junto com o Windows: `Win + R` → `shell:startup` → coloque um atalho do `iniciar.bat` ali.
 - Deixe a janela aberta (pode minimizar).
 
+## Rodar escondido, sem janela (recomendado)
+
+Em vez do `iniciar.bat`, instale o programa como tarefa do Windows: ele roda em segundo plano, inicia
+sozinho quando o computador liga (sem precisar fazer login) e reinicia se cair.
+
+1. Feche o `iniciar.bat`, se estiver aberto.
+2. Abra o PowerShell **como administrador** (botão direito → Executar como administrador).
+3. Entre na pasta e instale:
+   ```
+   cd "C:\caminho\para\agente-impressao"
+   .\instalar-servico.ps1
+   ```
+4. Pronto. Para acompanhar o que acontece, abra o arquivo `agente.log` (na mesma pasta).
+5. Para desinstalar: `.\remover-servico.ps1` (também como administrador).
+
+Observações:
+- O computador precisa estar **ligado** (a impressora está na rede local, e só ele a alcança).
+- Use a conexão **Rede (IP)** em Admin → Impressoras: a tarefa roda como sistema, sem usuário logado.
+- Se mudar o `.env`, reinicie a tarefa (PowerShell como administrador):
+  ```
+  Stop-ScheduledTask -TaskName AgenteImpressaoPaoeMar
+  Start-ScheduledTask -TaskName AgenteImpressaoPaoeMar
+  ```
+
 ## Como funciona
 
 - Cada pedido gera um ticket por impressora (cozinha e/ou produção), conforme as caixas
