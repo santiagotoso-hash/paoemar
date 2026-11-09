@@ -4,6 +4,7 @@ import { redondear2 } from "@/lib/format";
 import { baixarInsumosDaVenda, buscarReceitas } from "@/lib/estoque";
 import { bandeiraParaGravar } from "@/lib/metodos-pago";
 import { publishStockAlerts, publishVentaEvent } from "@/lib/realtime";
+import { enfileirarPedido } from "@/lib/fila-impressao";
 
 export type VentaItemInput = {
   productoId: string;
@@ -155,7 +156,7 @@ type VentaCreada = Awaited<ReturnType<typeof crearVentaTx>>;
 /** Avisa a cocina (si corresponde) y recalcula alertas de stock. Llamar después del commit. */
 export async function publicarVenta(venta: VentaCreada, enviarCocina = true) {
   if (enviarCocina) {
-    await publishVentaEvent({
+    const evento = {
       id: venta.id,
       codigo: venta.codigo,
       nombreCliente: venta.nombreCliente,
@@ -166,8 +167,12 @@ export async function publicarVenta(venta: VentaCreada, enviarCocina = true) {
         productoNombre: i.producto.nombre,
         cantidad: i.cantidad.toString(),
         notas: i.notas,
+        imprimirCozinha: i.producto.imprimirCozinha,
+        imprimirProducao: i.producto.imprimirProducao,
       })),
-    });
+    };
+    await publishVentaEvent(evento);
+    await enfileirarPedido(evento, `venta:${venta.id}`);
   }
   await publishStockAlerts();
 }

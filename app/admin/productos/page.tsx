@@ -20,6 +20,8 @@ export default async function ProductosPage() {
     stockMinimo: p.stockMinimo.toString(),
     activo: p.activo,
     encomendavel: p.encomendavel,
+    imprimirCozinha: p.imprimirCozinha,
+    imprimirProducao: p.imprimirProducao,
     receita: p.receita.map((r) => ({ insumoId: r.insumoId, quantidade: r.quantidade.toString() })),
   }));
 

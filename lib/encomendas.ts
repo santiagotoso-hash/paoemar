@@ -36,5 +36,8 @@ export function encomendaParaEvento(e: EncomendaComItens): EncomendaEvent {
 /** Relê a encomenda e avisa a Fábrica (e a tela de encomendas) pelo tempo real. */
 export async function publicarEncomenda(id: string) {
   const e = await prisma.encomenda.findUnique({ where: { id }, include: encomendaInclude });
-  if (e) await publishEncomendaEvent(encomendaParaEvento(e));
+  if (!e) return null;
+  const evento = encomendaParaEvento(e);
+  await publishEncomendaEvent(evento);
+  return evento;
 }

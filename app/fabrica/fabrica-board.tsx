@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CalendarClock, ChevronDown, Phone, TriangleAlert } from "lucide-react";
+import { CalendarClock, ChevronDown, Phone, Printer, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { EncomendaEvent } from "@/lib/realtime";
+import type { ConfigImpressora } from "@/lib/impressoras";
+import { imprimirTicket } from "@/lib/impressao";
+import { ticketDeEncomenda } from "@/lib/ticket";
 import { cn } from "@/lib/utils";
 import { formatHora } from "@/lib/format";
 import { avanzarEstadoEncomenda } from "./actions";
@@ -42,11 +45,26 @@ function situacao(e: EncomendaEvent, agora: number): "atrasada" | "urgente" | nu
 export function FabricaBoard({
   encomendasIniciais,
   entreguesIniciais = [],
+  impressora,
 }: {
   encomendasIniciais: EncomendaEvent[];
   /** Retiradas hoje (lista recolhida), mais recente primeiro. */
   entreguesIniciais?: EncomendaEvent[];
+  /** Impressora da produção (Admin → Impressoras). */
+  impressora: ConfigImpressora;
 }) {
+  /**
+   * Reimpressão manual pelo navegador deste aparelho. Os tickets automáticos não saem daqui:
+   * quem imprime é o programa da loja (agente-impressao), que lê a fila do servidor.
+   */
+  function imprimirEncomenda(e: EncomendaEvent) {
+    if (!impressora.ativa) {
+      toast.error("A impressora da produção está desativada. Ative em Admin → Impressoras.");
+      return;
+    }
+    imprimirTicket(ticketDeEncomenda(e, impressora));
+  }
+
   const [encomendas, setEncomendas] = useState<EncomendaEvent[]>(encomendasIniciais);
   const [entregues, setEntregues] = useState<EncomendaEvent[]>(entreguesIniciais);
   const [verEntregues, setVerEntregues] = useState(false);
@@ -164,9 +182,15 @@ export function FabricaBoard({
                         ))}
                       </ul>
                       {e.notas && <p className="rounded-lg bg-accent px-2.5 py-1.5 text-sm">{e.notas}</p>}
-                      <Button size="sm" onClick={() => handleAvanzar(e)} disabled={avancando.has(e.id)}>
-                        {avancando.has(e.id) ? "Avançando..." : col.acao}
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button size="sm" className="flex-1" onClick={() => handleAvanzar(e)} disabled={avancando.has(e.id)}>
+                          {avancando.has(e.id) ? "Avançando..." : col.acao}
+                        </Button>
+                        <Button size="sm" variant="outline" aria-label={`Imprimir ${e.codigo}`} onClick={() => imprimirEncomenda(e)}>
+                          <Printer />
+                          Imprimir
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 );

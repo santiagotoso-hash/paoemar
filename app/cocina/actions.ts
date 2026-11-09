@@ -44,6 +44,8 @@ async function publicarVenta(ventaId: string) {
       productoNombre: i.producto.nombre,
       cantidad: i.cantidad.toString(),
       notas: i.notas,
+      imprimirCozinha: i.producto.imprimirCozinha,
+      imprimirProducao: i.producto.imprimirProducao,
     })),
   });
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { BellRing, ChevronDown } from "lucide-react";
+import { BellRing, ChevronDown, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,9 @@ import { cn } from "@/lib/utils";
 import { formatHora } from "@/lib/format";
 import { chaveAlerta, estaParado, minutosNoEstado, textoParado } from "@/lib/alertas";
 import { avisar, desbloquearAudio, pedirPermissaoNotificacao } from "@/lib/avisos-sonoros";
+import type { ConfigImpressora } from "@/lib/impressoras";
+import { imprimirTicket } from "@/lib/impressao";
+import { ticketDePedido } from "@/lib/ticket";
 import { avanzarEstadoRonda, avanzarEstadoVenta } from "./actions";
 
 const COLUMNAS = [
@@ -58,11 +61,31 @@ function duracaoTotal(tempos: TemposPedido) {
 export function CocinaBoard({
   ventasIniciales,
   entreguesIniciais = [],
+  impressora,
 }: {
   ventasIniciales: VentaEvent[];
   /** Entregues hoje (lista recolhida), mais recente primeiro. */
   entreguesIniciais?: VentaEvent[];
+  /** Impressora da cozinha (Admin → Impressoras). */
+  impressora: ConfigImpressora;
 }) {
+  /**
+   * Reimpressão manual pelo navegador deste aparelho. Os tickets automáticos não saem daqui:
+   * quem imprime é o programa da loja (agente-impressao), que lê a fila do servidor.
+   */
+  function imprimir(v: VentaEvent) {
+    if (!impressora.ativa) {
+      toast.error("A impressora da cozinha está desativada. Ative em Admin → Impressoras.");
+      return;
+    }
+    const ticket = ticketDePedido(v, "COZINHA", impressora);
+    if (!ticket) {
+      toast.info("Nenhum item deste pedido está marcado para imprimir na cozinha.");
+      return;
+    }
+    imprimirTicket(ticket);
+  }
+
   const [ventas, setVentas] = useState<VentaEvent[]>(ventasIniciales);
   const [entregues, setEntregues] = useState<VentaEvent[]>(entreguesIniciais);
   const [verEntregues, setVerEntregues] = useState(false);
@@ -194,13 +217,19 @@ export function CocinaBoard({
                         ))}
                       </ul>
                       <LinhaDoTempo tempos={temposDe(v)} />
-                      <Button size="sm" onClick={() => handleAvanzar(v)} disabled={avancando.has(v.id)}>
-                        {avancando.has(v.id)
-                          ? "Avançando..."
-                          : col.estado === "LISTO"
-                            ? "Marcar entregue"
-                            : "Avançar"}
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button size="sm" className="flex-1" onClick={() => handleAvanzar(v)} disabled={avancando.has(v.id)}>
+                          {avancando.has(v.id)
+                            ? "Avançando..."
+                            : col.estado === "LISTO"
+                              ? "Marcar entregue"
+                              : "Avançar"}
+                        </Button>
+                        <Button size="sm" variant="outline" aria-label={`Imprimir ${v.codigo}`} onClick={() => imprimir(v)}>
+                          <Printer />
+                          Imprimir
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 );

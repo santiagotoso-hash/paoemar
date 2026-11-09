@@ -16,27 +16,31 @@ model Categoria {
 }
 
 model Producto {
-  id             String          @id @default(cuid())
-  codigo         String          @unique
-  nombre         String
-  categoriaId    String
-  precio         Decimal
-  tipoUnidad     TipoUnidad      @default(UNIDAD)
-  descripcion    String?
-  stockActual    Decimal
-  stockMinimo    Decimal         @default(5)
-  imagenUrl      String?
-  activo         Boolean         @default(true)
-  categoria      Categoria       @relation(fields: [categoriaId], references: [id])
-  ventaItems     VentaItem[]
-  comandaItems   ComandaItem[]
-  adicionais     Adicional[]
-  gruposOpcion   GrupoOpcion[]
+  id               String          @id @default(cuid())
+  codigo           String          @unique
+  nombre           String
+  categoriaId      String
+  precio           Decimal
+  tipoUnidad       TipoUnidad      @default(UNIDAD)
+  descripcion      String?
+  stockActual      Decimal
+  stockMinimo      Decimal         @default(5)
+  imagenUrl        String?
+  activo           Boolean         @default(true)
+  categoria        Categoria       @relation(fields: [categoriaId], references: [id])
+  ventaItems       VentaItem[]
+  comandaItems     ComandaItem[]
+  adicionais       Adicional[]
+  gruposOpcion     GrupoOpcion[]
   /// Ficha técnica: se tiver linhas, a venda baixa os insumos e não usa stockActual.
-  receita        ReceitaItem[]
+  receita          ReceitaItem[]
   /// Pode ser pedido por encomenda (aparece na lista da tela de encomendas e vai para a Fábrica).
-  encomendavel   Boolean         @default(false)
-  encomendaItems EncomendaItem[]
+  encomendavel     Boolean         @default(false)
+  /// Sai na impressora da cozinha (comanda impressa dos itens marcados).
+  imprimirCozinha  Boolean         @default(false)
+  /// Sai na impressora da produção (Fábrica), que é outra impressora.
+  imprimirProducao Boolean         @default(false)
+  encomendaItems   EncomendaItem[]
 }
 
 /// Pedido por encomenda: produzido na Fábrica para retirada numa data e hora combinadas.
@@ -456,4 +460,52 @@ enum BandeiraCartao {
 enum TipoMovimiento {
   SANGRIA
   SUMINISTRO
+}
+
+/// Onde o ticket sai: a impressora da cozinha ou a da produção (Fábrica).
+enum DestinoImpressao {
+  COZINHA
+  PRODUCAO
+}
+
+enum ConexaoImpressora {
+  REDE
+  USB
+  BLUETOOTH
+}
+
+/// Configuração de uma impressora de tickets (uma por destino).
+model Impressora {
+  id           String            @id @default(cuid())
+  destino      DestinoImpressao  @unique
+  nome         String
+  ativa        Boolean           @default(true)
+  conexao      ConexaoImpressora @default(REDE)
+  /// IP ou nome da impressora. Só identifica o aparelho: no modo navegador a impressora é escolhida no diálogo do sistema.
+  endereco     String?
+  porta        Int?
+  /// Largura do papel em mm (58 ou 80).
+  larguraMm    Int               @default(80)
+  copias       Int               @default(1)
+  atualizadaEm DateTime          @updatedAt
+}
+
+/// Fila de tickets: o programa da loja (agente-impressao) busca os pendentes e imprime.
+model TicketImpressao {
+  id          String           @id @default(cuid())
+  /// Evita ticket em duplicidade para o mesmo pedido e destino. Ex.: "ronda:<id>:COZINHA".
+  chave       String           @unique
+  destino     DestinoImpressao
+  titulo      String
+  linhas      String[]
+  larguraMm   Int
+  copias      Int
+  criadoEm    DateTime         @default(now())
+  /// Entregue ao agente e ainda sem confirmação (tenta de novo se passar do prazo).
+  reservadoEm DateTime?
+  impressoEm  DateTime?
+  tentativas  Int              @default(0)
+  erro        String?
+
+  @@index([destino, impressoEm])
 }

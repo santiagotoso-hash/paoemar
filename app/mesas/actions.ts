@@ -19,6 +19,7 @@ import {
 import { redondear2 } from "@/lib/format";
 import { nomeMesa, TAXA_SERVICO, totalItem } from "@/lib/mesas";
 import { publishVentaEvent } from "@/lib/realtime";
+import { enfileirarPedido } from "@/lib/fila-impressao";
 import { getRedisPublisher } from "@/lib/redis";
 import { numeroRonda, numerosRondas, rondaCocinaInclude, rondaParaEvento } from "@/lib/rondas";
 import { bloquearComandaAbierta, crearVentaTx, publicarVenta } from "@/lib/ventas";
@@ -150,7 +151,9 @@ const lancarSchema = z.object({
 
 async function publicarRonda(rondaId: string) {
   const ronda = await prisma.ronda.findUniqueOrThrow({ where: { id: rondaId }, include: rondaCocinaInclude });
-  await publishVentaEvent(rondaParaEvento(ronda, await numeroRonda(ronda)));
+  const evento = rondaParaEvento(ronda, await numeroRonda(ronda));
+  await publishVentaEvent(evento);
+  return evento;
 }
 
 /**
@@ -228,7 +231,10 @@ export async function lancarRonda(comandaId: string, input: unknown): Promise<Re
 
   // Num reenvio publica de novo: se a primeira publicação falhou, a cozinha recebe agora
   // (o quadro da cozinha substitui pelo id, não duplica).
-  await publicarRonda("rondaId" in res ? res.rondaId : res.repetida);
+  const rondaId = "rondaId" in res ? res.rondaId : res.repetida;
+  const evento = await publicarRonda(rondaId);
+  // Tickets das impressoras (a chave da fila impede imprimir de novo num reenvio).
+  await enfileirarPedido(evento, `ronda:${rondaId}`);
 
   revalidatePath("/mesas");
   revalidatePath(`/mesas/${comandaId}`);
