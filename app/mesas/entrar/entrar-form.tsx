@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -67,6 +67,15 @@ export function EntrarForm({
       setLoading(false);
     }
   }
+
+  // Ao completar o 4º dígito entra sozinho, sem tocar em "Entrar". Dispara só quando `pronto`
+  // passa a verdadeiro: erro de PIN limpa os dígitos e a próxima tentativa dispara de novo.
+  // A ref garante que roda a versão mais recente do handler (com o PIN e o atendente atuais).
+  const entrarRef = useRef(handleEntrar);
+  entrarRef.current = handleEntrar;
+  useEffect(() => {
+    if (pronto) void entrarRef.current();
+  }, [pronto]);
 
   const selecionado = atendentes.find((a) => a.id === atendenteId);
 
