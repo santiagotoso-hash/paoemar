@@ -22,6 +22,10 @@ export default async function ProductosPage() {
     encomendavel: p.encomendavel,
     imprimirCozinha: p.imprimirCozinha,
     imprimirProducao: p.imprimirProducao,
+    ncm: p.ncm,
+    cfop: p.cfop,
+    csosn: p.csosn,
+    origem: p.origem,
     receita: p.receita.map((r) => ({ insumoId: r.insumoId, quantidade: r.quantidade.toString() })),
   }));
 

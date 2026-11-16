@@ -150,6 +150,7 @@ Copie `.env.example` para `.env`. Em produção, cadastre as mesmas variáveis n
 | `ATENDENTE_SESSION_SECRET` | Assina a sessão do atendente (PIN). Se vazio, usa o `CLERK_SECRET_KEY` | Recomendada |
 | `ADMIN_AUTO_EMAILS` | E-mails que viram `admin` no primeiro acesso (demonstrações) | Não |
 | `PRINT_AGENT_TOKEN` | Senha entre o servidor e o programa de impressão. Sem ela, a API de impressão responde 503 | Para imprimir |
+| `FOCUSNFE_TOKEN` | Token do Focus NFe para emitir notas fiscais (Admin → Fiscal mostra se está configurado) | Para emitir notas |
 | `NEXT_PUBLIC_CONTATO_WHATSAPP`, `NEXT_PUBLIC_CONTATO_EMAIL` | Contatos da página inicial pública | Não |
 
 O programa de impressão tem o próprio `.env` (em `agente-impressao/`), documentado no `LEIAME` dele. **Nunca comite** nenhum `.env`: eles já estão no `.gitignore`.

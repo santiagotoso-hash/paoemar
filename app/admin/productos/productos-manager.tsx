@@ -24,11 +24,19 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { formatBRL } from "@/lib/format";
+import { dadosEfetivos, faltaFiscal, ORIGENS, TEXTO_ORIGEM } from "@/lib/fiscal";
 import { TEXTO_UNIDADE } from "@/lib/estoque";
 import type { UnidadeInsumo } from "@prisma/client";
 import { crearProducto, editarProducto, salvarReceita, toggleActivoProducto } from "./actions";
 
-type Categoria = { id: string; nombre: string };
+type Categoria = {
+  id: string;
+  nombre: string;
+  ncmPadrao: string | null;
+  cfopPadrao: string | null;
+  csosnPadrao: string | null;
+  origemPadrao: number | null;
+};
 
 type Insumo = { id: string; nome: string; unidade: UnidadeInsumo; custoMedio: string };
 
@@ -48,6 +56,10 @@ type Producto = {
   encomendavel: boolean;
   imprimirCozinha: boolean;
   imprimirProducao: boolean;
+  ncm: string | null;
+  cfop: string | null;
+  csosn: string | null;
+  origem: number | null;
   receita: LinhaReceita[];
 };
 
@@ -167,12 +179,16 @@ function ProductoForm({
   const [encomendavel, setEncomendavel] = useState(producto?.encomendavel ?? false);
   const [imprimirCozinha, setImprimirCozinha] = useState(producto?.imprimirCozinha ?? false);
   const [imprimirProducao, setImprimirProducao] = useState(producto?.imprimirProducao ?? false);
+  const [ncm, setNcm] = useState(producto?.ncm ?? "");
+  const [cfop, setCfop] = useState(producto?.cfop ?? "");
+  const [csosn, setCsosn] = useState(producto?.csosn ?? "");
+  const [origem, setOrigem] = useState<number | null>(producto?.origem ?? null);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    const payload = { codigo, nombre, categoriaId, precio, tipoUnidad, descripcion, stockActual, stockMinimo, encomendavel, imprimirCozinha, imprimirProducao };
+    const payload = { codigo, nombre, categoriaId, precio, tipoUnidad, descripcion, stockActual, stockMinimo, encomendavel, imprimirCozinha, imprimirProducao, ncm, cfop, csosn, origem };
     try {
       if (producto) {
         await editarProducto(producto.id, payload);
@@ -276,6 +292,46 @@ function ProductoForm({
         </span>
       </label>
 
+      <details className="rounded-xl border p-3 text-sm" open={!!(ncm || cfop || csosn || origem !== null)}>
+        <summary className="cursor-pointer font-medium">Dados fiscais (opcional)</summary>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Deixe em branco para usar o padrão da categoria (Admin → Fiscal). Preencha só se este produto for diferente.
+        </p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="ncm">NCM</Label>
+            <Input id="ncm" inputMode="numeric" value={ncm} onChange={(e) => setNcm(e.target.value)} placeholder="0000.00.00" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="cfop">CFOP</Label>
+            <Input id="cfop" inputMode="numeric" value={cfop} onChange={(e) => setCfop(e.target.value)} placeholder="5102" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="csosn">CSOSN</Label>
+            <Input id="csosn" inputMode="numeric" value={csosn} onChange={(e) => setCsosn(e.target.value)} placeholder="102" />
+          </div>
+        </div>
+        <div className="mt-3 flex flex-col gap-1.5">
+          <Label>Origem</Label>
+          <Select
+            value={origem === null ? "" : String(origem)}
+            onValueChange={(v) => setOrigem(v === "" || v === null ? null : Number(v))}
+            items={Object.fromEntries(ORIGENS.map((o) => [String(o), TEXTO_ORIGEM[o]]))}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Usar a da categoria" />
+            </SelectTrigger>
+            <SelectContent>
+              {ORIGENS.map((o) => (
+                <SelectItem key={o} value={String(o)}>
+                  {TEXTO_ORIGEM[o]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </details>
+
       <label htmlFor="imprimirCozinha" className="flex cursor-pointer items-start gap-2 text-sm">
         <input
           id="imprimirCozinha"
@@ -341,6 +397,13 @@ export function ProductosManager({
 
   const categoriaNombre = (id: string) => categorias.find((c) => c.id === id)?.nombre ?? "—";
 
+  /** Falta NCM, CFOP, CSOSN ou origem (considerando o padrão da categoria). */
+  function fiscalIncompleto(p: Producto) {
+    const c = categorias.find((x) => x.id === p.categoriaId);
+    const padrao = { ncm: c?.ncmPadrao ?? null, cfop: c?.cfopPadrao ?? null, csosn: c?.csosnPadrao ?? null, origem: c?.origemPadrao ?? null };
+    return faltaFiscal(dadosEfetivos(p, padrao)).length > 0;
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-end">
@@ -366,6 +429,7 @@ export function ProductosManager({
             <TableHead>Encomenda</TableHead>
             <TableHead>Cozinha</TableHead>
             <TableHead>Produção</TableHead>
+            <TableHead>Fiscal</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="text-right">Ações</TableHead>
           </TableRow>
@@ -392,6 +456,7 @@ export function ProductosManager({
                 <TableCell>{p.encomendavel ? "Sim" : ""}</TableCell>
                 <TableCell>{p.imprimirCozinha ? "Sim" : ""}</TableCell>
                 <TableCell>{p.imprimirProducao ? "Sim" : ""}</TableCell>
+                <TableCell>{fiscalIncompleto(p) ? <Badge variant="outline">Incompleto</Badge> : ""}</TableCell>
                 <TableCell>
                   <Badge variant={p.activo ? "default" : "outline"}>
                     {p.activo ? "Ativo" : "Inativo"}

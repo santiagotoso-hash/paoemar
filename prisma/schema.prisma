@@ -9,10 +9,15 @@ datasource db {
 }
 
 model Categoria {
-  id        String     @id @default(cuid())
-  nombre    String
-  icono     String?
-  productos Producto[]
+  id           String     @id @default(cuid())
+  nombre       String
+  icono        String?
+  /// Dados fiscais padrão da categoria; cada produto pode ter os seus (vale o do produto, se houver).
+  ncmPadrao    String?
+  cfopPadrao   String?
+  csosnPadrao  String?
+  origemPadrao Int?
+  productos    Producto[]
 }
 
 model Producto {
@@ -40,7 +45,28 @@ model Producto {
   imprimirCozinha  Boolean         @default(false)
   /// Sai na impressora da produção (Fábrica), que é outra impressora.
   imprimirProducao Boolean         @default(false)
+  /// Dados fiscais do produto (vazio = usa o padrão da categoria): NCM, CFOP, CSOSN (Simples) e origem.
+  ncm              String?
+  cfop             String?
+  csosn            String?
+  origem           Int?
   encomendaItems   EncomendaItem[]
+}
+
+enum AmbienteFiscal {
+  HOMOLOGACAO
+  PRODUCAO
+}
+
+/// Configuração da emissão fiscal (uma linha só, id "unica"). O token do Focus NFe fica em variável de ambiente.
+model ConfiguracaoFiscal {
+  id           String         @id @default("unica")
+  /// Desligada, nenhuma nota é emitida.
+  ativa        Boolean        @default(false)
+  ambiente     AmbienteFiscal @default(HOMOLOGACAO)
+  /// CNPJ do emitente (14 dígitos, só números), o mesmo cadastrado no Focus NFe.
+  cnpj         String?
+  atualizadaEm DateTime       @updatedAt
 }
 
 /// Pedido por encomenda: produzido na Fábrica para retirada numa data e hora combinadas.
