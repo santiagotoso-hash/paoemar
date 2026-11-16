@@ -96,6 +96,12 @@ function CancelarForm({
     }
   }
 
+  // Cancela sozinho ao completar o PIN (se motivo e supervisor já estão preenchidos).
+  useEffect(() => {
+    if (pin.length === PIN_LEN && pronto && !loading) void handleCancelar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pin]);
+
   return (
     <>
       <div className="px-4 pb-3 pr-14 pt-3">

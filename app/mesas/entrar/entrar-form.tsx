@@ -55,18 +55,25 @@ export function EntrarForm({
       if (!res.ok) {
         toast.error(res.error);
         setPin("");
+        setLoading(false);
         return;
       }
       registrarAtividade(atendenteId); // relógio de inatividade começa agora
+      // loading fica true até a navegação, para não reenviar o PIN.
       router.push(voltar);
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao entrar");
       setPin("");
-    } finally {
       setLoading(false);
     }
   }
+
+  // Entra automaticamente ao completar os 4 dígitos.
+  useEffect(() => {
+    if (pronto && !loading) void handleEntrar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pronto]);
 
   const selecionado = atendentes.find((a) => a.id === atendenteId);
 
