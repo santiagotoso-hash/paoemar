@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireRole, ROUTE_ROLES } from "@/lib/auth";
 import { publishStockAlerts } from "@/lib/realtime";
+import { camposFiscais } from "@/lib/fiscal-schema";
 
 const productoSchema = z.object({
   codigo: z.string().min(1, "Obrigatório"),
@@ -15,6 +16,7 @@ const productoSchema = z.object({
   descripcion: z.string().optional(),
   stockActual: z.coerce.number().min(0),
   stockMinimo: z.coerce.number().min(0),
+  ...camposFiscais,
   encomendavel: z.boolean().default(false),
   imprimirCozinha: z.boolean().default(false),
   imprimirProducao: z.boolean().default(false),
