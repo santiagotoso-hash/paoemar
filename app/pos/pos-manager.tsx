@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,26 @@ type Producto = {
 
 type Categoria = { id: string; nombre: string; icono: string | null };
 
+/** Campo de quantidade que tolera ficar vazio enquanto se digita (não remove o item). */
+function QtyInput({ value, step, onCommit }: { value: number; step: string; onCommit: (n: number) => void }) {
+  const [draft, setDraft] = useState<string | null>(null);
+  return (
+    <Input
+      type="number"
+      inputMode="decimal"
+      min="0"
+      step={step}
+      value={draft ?? String(value)}
+      onChange={(e) => {
+        setDraft(e.target.value);
+        const n = Number(e.target.value);
+        if (e.target.value !== "" && n > 0) onCommit(n);
+      }}
+      onBlur={() => setDraft(null)} // vazio/0 volta à quantidade anterior
+      className="w-20"
+    />
+  );
+}
 
 export function PosManager({
   productos,
@@ -145,14 +166,20 @@ export function PosManager({
                   <p className="text-sm font-medium">{item.producto.nombre}</p>
                   <p className="text-xs text-muted-foreground">{formatBRL(item.subtotal)}</p>
                 </div>
-                <Input
-                  type="number"
-                  min="0"
-                  step={item.producto.tipoUnidad === "KG" ? "0.1" : "1"}
+                <QtyInput
                   value={item.cantidad}
-                  onChange={(e) => setQty(item.producto.id, Number(e.target.value))}
-                  className="w-20"
+                  step={item.producto.tipoUnidad === "KG" ? "0.1" : "1"}
+                  onCommit={(n) => setQty(item.producto.id, n)}
                 />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Remover ${item.producto.nombre}`}
+                  onClick={() => setQty(item.producto.id, 0)}
+                >
+                  <X />
+                </Button>
               </li>
             ))}
           </ul>

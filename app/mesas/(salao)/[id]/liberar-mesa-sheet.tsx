@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { DoorOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -57,6 +57,12 @@ export function LiberarMesaSheet({
       setLoading(false);
     }
   }
+
+  // Autoriza sozinho ao completar o PIN do supervisor.
+  useEffect(() => {
+    if (precisaSupervisor && pin.length === PIN_LEN && pronto && !loading) void handleLiberar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pin]);
 
   return (
     <Dialog
