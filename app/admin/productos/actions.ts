@@ -20,6 +20,7 @@ const productoSchema = z.object({
   encomendavel: z.boolean().default(false),
   imprimirCozinha: z.boolean().default(false),
   imprimirProducao: z.boolean().default(false),
+  imprimirCaixa: z.boolean().default(false),
 });
 
 export async function crearProducto(input: unknown) {

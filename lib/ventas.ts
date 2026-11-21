@@ -1,6 +1,6 @@
 import type { BandeiraCartao, MetodoPago, OrigenVenta, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { redondear2 } from "@/lib/format";
+import { redondear2, VALOR_EMBALAGEM } from "@/lib/format";
 import { baixarInsumosDaVenda, buscarReceitas } from "@/lib/estoque";
 import { bandeiraParaGravar } from "@/lib/metodos-pago";
 import { publishStockAlerts, publishVentaEvent } from "@/lib/realtime";
@@ -27,6 +27,8 @@ export type CrearVentaParams = {
   comandaId?: string;
   /** Taxa de serviço, separada del subtotal. */
   servicio?: number;
+  /** Cobra a embalagem (valor fixo, VALOR_EMBALAGEM) além do subtotal. */
+  embalagem?: boolean;
   /**
    * Ajuste manual no fechamento: negativo = desconto, positivo = adicional.
    * Fica gravado em `descuento` com o sinal invertido (desconto positivo, adicional negativo).
@@ -62,6 +64,7 @@ export async function bloquearComandaAbierta(tx: Prisma.TransactionClient, coman
 export async function crearVentaTx(tx: Prisma.TransactionClient, params: CrearVentaParams) {
   const { items, origen, operadorId, metodoPago, nombreCliente, comandaId } = params;
   const servicio = redondear2(params.servicio ?? 0);
+  const embalagem = params.embalagem ? VALOR_EMBALAGEM : 0;
   const ajuste = redondear2(params.ajuste ?? 0);
   const enviarCocina = params.enviarCocina ?? true;
   const validarStock = params.validarStock ?? true;
@@ -107,7 +110,7 @@ export async function crearVentaTx(tx: Prisma.TransactionClient, params: CrearVe
     };
   });
 
-  if (redondear2(subtotal + servicio + ajuste) < 0) {
+  if (redondear2(subtotal + servicio + embalagem + ajuste) < 0) {
     throw new Error("O desconto não pode ser maior que o valor da conta");
   }
 
@@ -121,7 +124,8 @@ export async function crearVentaTx(tx: Prisma.TransactionClient, params: CrearVe
       subtotal,
       descuento: redondear2(-ajuste),
       servicio,
-      total: redondear2(subtotal + servicio + ajuste),
+      embalagem,
+      total: redondear2(subtotal + servicio + embalagem + ajuste),
       metodoPago,
       bandeira: bandeiraParaGravar(metodoPago, params.bandeira),
       ...(enviarCocina ? {} : { estado: "ENTREGADO" as const }),
@@ -130,7 +134,7 @@ export async function crearVentaTx(tx: Prisma.TransactionClient, params: CrearVe
       comandaId,
       items: { create: itemsData },
     },
-    include: { items: { include: { producto: true } } },
+    include: { items: { include: { producto: true, adicionais: true } } },
   });
 
   for (const item of itemsData) {
@@ -151,6 +155,12 @@ export async function crearVentaTx(tx: Prisma.TransactionClient, params: CrearVe
   return nuevaVenta;
 }
 
+/** Observação (e a opção escolhida) mais os adicionais, numa linha para a cozinha e os tickets. */
+export function notasDoItem(i: { notas: string | null; adicionais: { nombre: string }[] }) {
+  const partes = [i.notas, ...i.adicionais.map((a) => `+ ${a.nombre}`)].filter(Boolean);
+  return partes.length ? partes.join(" · ") : null;
+}
+
 type VentaCreada = Awaited<ReturnType<typeof crearVentaTx>>;
 
 /** Avisa a cocina (si corresponde) y recalcula alertas de stock. Llamar después del commit. */
@@ -166,9 +176,10 @@ export async function publicarVenta(venta: VentaCreada, enviarCocina = true) {
       items: venta.items.map((i) => ({
         productoNombre: i.producto.nombre,
         cantidad: i.cantidad.toString(),
-        notas: i.notas,
+        notas: notasDoItem(i),
         imprimirCozinha: i.producto.imprimirCozinha,
         imprimirProducao: i.producto.imprimirProducao,
+        imprimirCaixa: i.producto.imprimirCaixa,
       })),
     };
     await publishVentaEvent(evento);

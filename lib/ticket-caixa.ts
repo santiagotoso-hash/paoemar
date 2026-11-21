@@ -20,7 +20,6 @@ export type DadosConta = {
   itens: ItemConta[];
   consumo: number;
   /** Taxa de serviço; 0 quando não cobrada. */
-  servico: number;
   /** Desconto (negativo) ou adicional (positivo). */
   ajuste: number;
   total: number;
@@ -69,7 +68,6 @@ export function ticketDeConta(d: DadosConta): Ticket {
   }
 
   linhas.push(separador, linhaValor("Consumo", brl(d.consumo), cols));
-  if (d.servico > 0) linhas.push(linhaValor("Serviço (10%)", brl(d.servico), cols));
   if (d.ajuste < 0) linhas.push(linhaValor("Desconto", `- ${brl(-d.ajuste)}`, cols));
   if (d.ajuste > 0) linhas.push(linhaValor("Adicional", brl(d.ajuste), cols));
   linhas.push(separador, linhaValor("TOTAL", brl(d.total), cols));

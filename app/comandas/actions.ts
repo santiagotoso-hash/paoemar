@@ -5,8 +5,6 @@ import { camposPagamento, validarPagamento } from "@/lib/metodos-pago";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireRole, ROUTE_ROLES } from "@/lib/auth";
-import { TAXA_SERVICO, totalItem } from "@/lib/mesas";
-import { redondear2 } from "@/lib/format";
 import { bloquearComandaAbierta, crearVentaTx, publicarVenta } from "@/lib/ventas";
 
 /** Las comandas abiertas desde /mesas (tienen atendente) se atienden y cierran solo allá. */
@@ -84,7 +82,6 @@ export async function cerrarComanda(comandaId: string, input: unknown) {
       if (comanda.atendenteId) throw new Error(ES_DE_MESA);
       if (comanda.items.length === 0) throw new Error("A comanda não tem itens");
 
-      const consumo = redondear2(comanda.items.reduce((acc, i) => acc + totalItem(i), 0));
       const venta = await crearVentaTx(tx, {
         items: comanda.items.map((i) => ({
           productoId: i.productoId,
@@ -99,8 +96,6 @@ export async function cerrarComanda(comandaId: string, input: unknown) {
         bandeira: data.bandeira,
         nombreCliente: comanda.nombreCliente ?? undefined,
         comandaId: comanda.id,
-        // Misma regla que /mesas: si la comanda tiene servicio, se cobra igual en las dos pantallas.
-        servicio: comanda.servicio ? redondear2(consumo * TAXA_SERVICO) : 0,
       });
 
       await tx.comanda.update({

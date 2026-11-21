@@ -17,7 +17,8 @@ function linhasDeItem(i: { productoNombre: string; cantidad: string; notas: stri
  * no produto (cozinha ou produção). Sem itens marcados, não há o que imprimir (null).
  */
 export function ticketDePedido(v: VentaEvent, destino: DestinoDeProduto, config: ConfigImpressora): Ticket | null {
-  const itens = v.items.filter((i) => (destino === "COZINHA" ? i.imprimirCozinha : i.imprimirProducao));
+  const marca = { COZINHA: "imprimirCozinha", PRODUCAO: "imprimirProducao", CAIXA: "imprimirCaixa" } as const;
+  const itens = v.items.filter((i) => i[marca[destino]]);
   if (itens.length === 0) return null;
 
   return {

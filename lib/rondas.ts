@@ -13,7 +13,7 @@ export const rondaCocinaInclude = {
       cantidad: true,
       notas: true,
       opcion: true,
-      producto: { select: { nombre: true, imprimirCozinha: true, imprimirProducao: true } },
+      producto: { select: { nombre: true, imprimirCozinha: true, imprimirProducao: true, imprimirCaixa: true } },
       adicionais: { select: { nombre: true } },
     },
   },
@@ -54,6 +54,7 @@ export function rondaParaEvento(ronda: RondaCocina, numero: number): VentaEvent 
       notas: notasCocina(i),
       imprimirCozinha: i.producto.imprimirCozinha,
       imprimirProducao: i.producto.imprimirProducao,
+      imprimirCaixa: i.producto.imprimirCaixa,
     })),
   };
 }

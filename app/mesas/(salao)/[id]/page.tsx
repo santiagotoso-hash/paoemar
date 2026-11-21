@@ -98,7 +98,6 @@ export default async function ComandaMesaPage({ params }: { params: { id: string
         personas: comanda.personas,
         abertaEm: comanda.abiertaEn.toISOString(),
         atendente: comanda.atendente?.nombre ?? null,
-        servicio: comanda.servicio,
       }}
       rodadas={rodadas}
       supervisores={supervisores}

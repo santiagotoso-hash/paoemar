@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole, ROUTE_ROLES } from "@/lib/auth";
 import { publishVentaEvent } from "@/lib/realtime";
 import { numeroRonda, rondaCocinaInclude, rondaParaEvento } from "@/lib/rondas";
+import { notasDoItem } from "@/lib/ventas";
 
 const ORDEN_ESTADOS = ["RECIBIDO", "EN_PREPARACION", "LISTO", "ENTREGADO"] as const;
 
@@ -26,7 +27,7 @@ function proximoEstado(estado: EstadoVenta) {
 async function publicarVenta(ventaId: string) {
   const v = await prisma.venta.findUnique({
     where: { id: ventaId },
-    include: { items: { include: { producto: true } } },
+    include: { items: { include: { producto: true, adicionais: true } } },
   });
   if (!v) return;
   await publishVentaEvent({
@@ -43,9 +44,10 @@ async function publicarVenta(ventaId: string) {
     items: v.items.map((i) => ({
       productoNombre: i.producto.nombre,
       cantidad: i.cantidad.toString(),
-      notas: i.notas,
+      notas: notasDoItem(i),
       imprimirCozinha: i.producto.imprimirCozinha,
       imprimirProducao: i.producto.imprimirProducao,
+      imprimirCaixa: i.producto.imprimirCaixa,
     })),
   });
 }

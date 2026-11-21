@@ -76,6 +76,7 @@ export type VentaEventItem = {
   /** Marcações do produto para impressão de ticket (Admin → Produtos). */
   imprimirCozinha?: boolean;
   imprimirProducao?: boolean;
+  imprimirCaixa?: boolean;
 };
 
 /** Linha do tempo de um pedido na cozinha. */

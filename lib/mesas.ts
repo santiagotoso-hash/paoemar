@@ -11,8 +11,6 @@ export const MESAS_DA_CASA: { tipo: TipoMesa; rotulo: string }[] = [
   { tipo: "NOMBRE", rotulo: "Balcão 2" },
 ];
 
-/** Taxa de serviço aplicada quando a comanda tem `servicio = true`. */
-export const TAXA_SERVICO = 0.1;
 
 /** Chave para comparar rótulos sem duplicar mesa ("varanda" == "Varanda "). */
 export function chaveMesa(rotulo: string) {

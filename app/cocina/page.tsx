@@ -3,13 +3,14 @@ import { prisma } from "@/lib/prisma";
 import { inicioDoDiaSP } from "@/lib/format";
 import { lerConfigImpressora } from "@/lib/impressoras-db";
 import { numerosRondas, rondaCocinaInclude, rondaParaEvento } from "@/lib/rondas";
+import { notasDoItem } from "@/lib/ventas";
 import { CocinaBoard } from "./cocina-board";
 
 export default async function CocinaPage() {
   const pendientes = { estado: { in: ["RECIBIDO", "EN_PREPARACION", "LISTO"] as EstadoVenta[] } };
   const hoje = inicioDoDiaSP();
 
-  const ventaInclude = { items: { include: { producto: true } } } as const;
+  const ventaInclude = { items: { include: { producto: true, adicionais: true } } } as const;
 
   const [ventas, rondas, ventasEntregues, rondasEntregues] = await Promise.all([
     prisma.venta.findMany({
@@ -59,9 +60,10 @@ export default async function CocinaPage() {
     items: v.items.map((i) => ({
       productoNombre: i.producto.nombre,
       cantidad: i.cantidad.toString(),
-      notas: i.notas,
+      notas: notasDoItem(i),
       imprimirCozinha: i.producto.imprimirCozinha,
       imprimirProducao: i.producto.imprimirProducao,
+      imprimirCaixa: i.producto.imprimirCaixa,
     })),
   });
 

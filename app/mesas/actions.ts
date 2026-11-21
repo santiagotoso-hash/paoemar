@@ -17,7 +17,7 @@ import {
   verificarPin,
 } from "@/lib/atendente";
 import { redondear2 } from "@/lib/format";
-import { nomeMesa, TAXA_SERVICO, totalItem } from "@/lib/mesas";
+import { nomeMesa, totalItem } from "@/lib/mesas";
 import { publishVentaEvent } from "@/lib/realtime";
 import { enfileirarNoCaixa, enfileirarPedido } from "@/lib/fila-impressao";
 import { ticketDeConta, type ItemConta } from "@/lib/ticket-caixa";
@@ -105,7 +105,6 @@ export async function abrirMesa(input: unknown): Promise<AbrirMesaResult> {
             codigo: data.rotulo,
             tipo: data.tipo,
             personas: data.personas,
-            servicio: true,
             atendenteId: atendente.id,
           },
         });
@@ -240,15 +239,6 @@ export async function lancarRonda(comandaId: string, input: unknown): Promise<Re
   revalidatePath("/mesas");
   revalidatePath(`/mesas/${comandaId}`);
   return { ok: true };
-}
-
-export async function alternarServico(comandaId: string, servicio: boolean) {
-  await requireRole(ROUTE_ROLES["/mesas"]);
-  const atendente = await requireAtendente();
-  const semPermissao = await conferirDonoDaMesa(atendente, comandaId);
-  if (semPermissao) throw new Error(semPermissao);
-  await prisma.comanda.update({ where: { id: comandaId, estado: "ABIERTA" }, data: { servicio } });
-  revalidatePath(`/mesas/${comandaId}`);
 }
 
 /** O atendente pode ajustar quantas pessoas estão na mesa a qualquer momento. */
@@ -456,7 +446,6 @@ async function imprimirRecibo(vendaId: string) {
       pessoas: v.comanda?.personas,
       itens,
       consumo: Number(v.subtotal),
-      servico: Number(v.servicio),
       // A venda guarda o desconto como valor positivo: aqui desconto é negativo e adicional é positivo.
       ajuste: -Number(v.descuento),
       total: Number(v.total),
@@ -490,7 +479,6 @@ export async function imprimirPreconta(comandaId: string): Promise<Resultado> {
     total: redondear2(totalItem(i)),
   }));
   const consumo = redondear2(itens.reduce((acc, i) => acc + i.total, 0));
-  const servico = comanda.servicio ? redondear2(consumo * TAXA_SERVICO) : 0;
 
   try {
     // Chave com a hora: dá para imprimir a pré-conta mais de uma vez.
@@ -503,9 +491,8 @@ export async function imprimirPreconta(comandaId: string): Promise<Resultado> {
         pessoas: comanda.personas,
         itens,
         consumo,
-        servico,
         ajuste: 0,
-        total: redondear2(consumo + servico),
+        total: consumo,
         rodape: "Pré-conta: não é documento fiscal",
         larguraMm: config.larguraMm,
         copias: config.copias,
@@ -549,12 +536,11 @@ export async function fecharConta(comandaId: string, input: unknown): Promise<Re
         if (comanda.items.length === 0) return { error: "Nenhum item lançado nesta mesa" };
 
         const consumo = redondear2(comanda.items.reduce((acc, i) => acc + totalItem(i), 0));
-        const servicio = comanda.servicio ? redondear2(consumo * TAXA_SERVICO) : 0;
         const ajuste = redondear2(data.ajuste);
-        if (redondear2(consumo + servicio + ajuste) < 0) {
+        if (redondear2(consumo + ajuste) < 0) {
           return { error: "O desconto não pode ser maior que o valor da conta" };
         }
-        if (Math.abs(redondear2(consumo + servicio + ajuste) - data.totalEsperado) >= 0.01) {
+        if (Math.abs(redondear2(consumo + ajuste) - data.totalEsperado) >= 0.01) {
           return { error: "A conta mudou enquanto você fechava. Confira os itens e tente de novo." };
         }
 
@@ -584,7 +570,6 @@ export async function fecharConta(comandaId: string, input: unknown): Promise<Re
           bandeira: data.bandeira,
           nombreCliente: nomeMesa(comanda.tipo, comanda.codigo),
           comandaId: comanda.id,
-          servicio,
           ajuste,
           cajaSesionId: caja.id,
           enviarCocina: false,
