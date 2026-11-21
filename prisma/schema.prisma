@@ -45,6 +45,8 @@ model Producto {
   imprimirCozinha  Boolean         @default(false)
   /// Sai na impressora da produção (Fábrica), que é outra impressora.
   imprimirProducao Boolean         @default(false)
+  /// Sai na impressora do caixa (ex.: itens que o caixa precisa conferir/entregar).
+  imprimirCaixa    Boolean         @default(false)
   /// Dados fiscais do produto (vazio = usa o padrão da categoria): NCM, CFOP, CSOSN (Simples) e origem.
   ncm              String?
   cfop             String?
@@ -253,6 +255,8 @@ model Venta {
   descuento     Decimal         @default(0)
   /// Taxa de serviço (gorjeta), separada do consumo. total = subtotal - descuento + servicio.
   servicio      Decimal         @default(0)
+  /// Embalagem opcional (custo adicional fixo). total = subtotal - descuento + servicio + embalagem.
+  embalagem     Decimal         @default(0)
   total         Decimal
   metodoPago    MetodoPago
   bandeira      BandeiraCartao?
@@ -481,7 +485,7 @@ enum BandeiraCartao {
   MASTERCARD
   ELO
   AMEX
-  HIPERCARD
+  VOUCHER_REFEICAO
   OUTRA
 }
 

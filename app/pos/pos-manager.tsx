@@ -9,9 +9,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatBRL } from "@/lib/format";
+import { formatBRL, VALOR_EMBALAGEM } from "@/lib/format";
 import type { BandeiraValue, MetodoPagoValue } from "@/lib/metodos-pago";
 import { FormaPagamento, pagamentoCompleto } from "@/components/forma-pagamento";
+import { OpcoesSheet } from "../mesas/(salao)/[id]/lancar/opcoes-sheet";
+import type { ProdutoMesa } from "../mesas/(salao)/[id]/lancar/lancar-itens";
+import { chavePendente, somarPendente, totalPendente, type ItemPendente } from "../mesas/pendentes";
 import { confirmarVentaMostrador } from "./actions";
 
 type Producto = {
@@ -22,6 +25,8 @@ type Producto = {
   precio: string;
   tipoUnidad: "UNIDAD" | "KG";
   stockActual: string;
+  adicionais: ProdutoMesa["adicionais"];
+  grupos: ProdutoMesa["grupos"];
 };
 
 type Categoria = { id: string; nombre: string; icono: string | null };
@@ -55,55 +60,82 @@ export function PosManager({
   categorias: Categoria[];
 }) {
   const router = useRouter();
-  const [cart, setCart] = useState<Record<string, number>>({});
+  const [cart, setCart] = useState<ItemPendente[]>([]);
+  const [produtoAberto, setProdutoAberto] = useState<ProdutoMesa | null>(null);
   const [metodoPago, setMetodoPago] = useState<MetodoPagoValue>("EFECTIVO");
   const [bandeira, setBandeira] = useState<BandeiraValue | null>(null);
   const [nombreCliente, setNombreCliente] = useState("");
+  const [embalagem, setEmbalagem] = useState(false);
   const [loading, setLoading] = useState(false);
 
   function addToCart(producto: Producto) {
+    if (producto.adicionais.length > 0 || producto.grupos.length > 0) {
+      // Produto com opções/adicionais (ex.: granola no açaí): escolhe numa folha.
+      setProdutoAberto({
+        id: producto.id,
+        nombre: producto.nombre,
+        precio: Number(producto.precio),
+        categoriaId: producto.categoriaId,
+        adicionais: producto.adicionais,
+        grupos: producto.grupos,
+      });
+      return;
+    }
     const paso = producto.tipoUnidad === "KG" ? 0.5 : 1;
-    setCart((prev) => ({ ...prev, [producto.id]: (prev[producto.id] ?? 0) + paso }));
+    setCart((prev) =>
+      somarPendente(prev, {
+        chave: chavePendente(producto.id, [], []),
+        productoId: producto.id,
+        nombre: producto.nombre,
+        adicionais: [],
+        qtd: paso,
+        precoUnit: Number(producto.precio),
+      })
+    );
   }
 
-  function setQty(productoId: string, value: number) {
-    setCart((prev) => {
-      if (value <= 0) {
-        return Object.fromEntries(Object.entries(prev).filter(([id]) => id !== productoId));
-      }
-      return { ...prev, [productoId]: value };
-    });
+  function setQty(chave: string, value: number) {
+    setCart((prev) =>
+      value <= 0 ? prev.filter((i) => i.chave !== chave) : prev.map((i) => (i.chave === chave ? { ...i, qtd: value } : i))
+    );
   }
 
   const cartItems = useMemo(
     () =>
-      Object.entries(cart)
-        .map(([productoId, cantidad]) => {
-          const producto = productos.find((p) => p.id === productoId);
-          if (!producto) return null;
-          const precioUnit = Number(producto.precio);
-          return { producto, cantidad, subtotal: precioUnit * cantidad };
+      cart
+        .map((item) => {
+          const producto = productos.find((p) => p.id === item.productoId);
+          return producto ? { item, producto, subtotal: totalPendente(item) } : null;
         })
         .filter((x): x is NonNullable<typeof x> => x !== null),
     [cart, productos]
   );
 
-  const total = cartItems.reduce((acc, item) => acc + item.subtotal, 0);
+  const subtotal = cartItems.reduce((acc, item) => acc + item.subtotal, 0);
+  const total = subtotal + (embalagem ? VALOR_EMBALAGEM : 0);
 
   async function handleConfirmar() {
     if (cartItems.length === 0) return;
     setLoading(true);
     try {
       const result = await confirmarVentaMostrador({
-        items: cartItems.map((i) => ({ productoId: i.producto.id, cantidad: i.cantidad })),
+        items: cartItems.map(({ item }) => ({
+          productoId: item.productoId,
+          cantidad: item.qtd,
+          opcionIds: item.opcion?.ids ?? [],
+          adicionalIds: item.adicionais.map((a) => a.id),
+          notas: item.observacao,
+        })),
         metodoPago,
         bandeira,
         nombreCliente: nombreCliente || undefined,
+        embalagem,
       });
       toast.success(`Venda ${result.codigo} confirmada — ${formatBRL(Number(result.total))}`);
-      setCart({});
+      setCart([]);
       setNombreCliente("");
       setBandeira(null);
+      setEmbalagem(false);
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao confirmar a venda");
@@ -160,23 +192,29 @@ export function PosManager({
           <p className="text-sm text-muted-foreground">Toque em um produto para adicioná-lo.</p>
         ) : (
           <ul className="flex flex-col gap-3">
-            {cartItems.map((item) => (
-              <li key={item.producto.id} className="flex items-center justify-between gap-2">
+            {cartItems.map(({ item, producto, subtotal }) => (
+              <li key={item.chave} className="flex items-center justify-between gap-2">
                 <div className="flex-1">
-                  <p className="text-sm font-medium">{item.producto.nombre}</p>
-                  <p className="text-xs text-muted-foreground">{formatBRL(item.subtotal)}</p>
+                  <p className="text-sm font-medium">{producto.nombre}</p>
+                  {(item.opcion || item.adicionais.length > 0 || item.observacao) && (
+                    <p className="text-xs text-muted-foreground">
+                      {[item.opcion?.nombre, ...item.adicionais.map((a) => `+ ${a.nombre}`)].filter(Boolean).join(" · ")}
+                      {item.observacao && <span className="italic"> “{item.observacao}”</span>}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">{formatBRL(subtotal)}</p>
                 </div>
                 <QtyInput
-                  value={item.cantidad}
-                  step={item.producto.tipoUnidad === "KG" ? "0.1" : "1"}
-                  onCommit={(n) => setQty(item.producto.id, n)}
+                  value={item.qtd}
+                  step={producto.tipoUnidad === "KG" ? "0.1" : "1"}
+                  onCommit={(n) => setQty(item.chave, n)}
                 />
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  aria-label={`Remover ${item.producto.nombre}`}
-                  onClick={() => setQty(item.producto.id, 0)}
+                  aria-label={`Remover ${producto.nombre}`}
+                  onClick={() => setQty(item.chave, 0)}
                 >
                   <X />
                 </Button>
@@ -195,6 +233,19 @@ export function PosManager({
           />
         </div>
 
+        <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 text-sm">
+          <span className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              className="size-5 accent-primary"
+              checked={embalagem}
+              onChange={(e) => setEmbalagem(e.target.checked)}
+            />
+            Embalagem
+          </span>
+          <span className="tabular-nums text-muted-foreground">+ {formatBRL(VALOR_EMBALAGEM)}</span>
+        </label>
+
         <div className="flex flex-col gap-1.5">
           <Label>Forma de pagamento</Label>
           <FormaPagamento metodo={metodoPago} onMetodo={setMetodoPago} bandeira={bandeira} onBandeira={setBandeira} />
@@ -212,6 +263,14 @@ export function PosManager({
           {loading ? "Confirmando..." : "Confirmar venda"}
         </Button>
       </div>
+      <OpcoesSheet
+        produto={produtoAberto}
+        onClose={() => setProdutoAberto(null)}
+        onAdicionar={(item) => {
+          setCart((prev) => somarPendente(prev, item));
+          setProdutoAberto(null);
+        }}
+      />
     </div>
   );
 }

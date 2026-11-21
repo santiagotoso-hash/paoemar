@@ -56,6 +56,7 @@ type Producto = {
   encomendavel: boolean;
   imprimirCozinha: boolean;
   imprimirProducao: boolean;
+  imprimirCaixa: boolean;
   ncm: string | null;
   cfop: string | null;
   csosn: string | null;
@@ -179,6 +180,7 @@ function ProductoForm({
   const [encomendavel, setEncomendavel] = useState(producto?.encomendavel ?? false);
   const [imprimirCozinha, setImprimirCozinha] = useState(producto?.imprimirCozinha ?? false);
   const [imprimirProducao, setImprimirProducao] = useState(producto?.imprimirProducao ?? false);
+  const [imprimirCaixa, setImprimirCaixa] = useState(producto?.imprimirCaixa ?? false);
   const [ncm, setNcm] = useState(producto?.ncm ?? "");
   const [cfop, setCfop] = useState(producto?.cfop ?? "");
   const [csosn, setCsosn] = useState(producto?.csosn ?? "");
@@ -188,7 +190,7 @@ function ProductoForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    const payload = { codigo, nombre, categoriaId, precio, tipoUnidad, descripcion, stockActual, stockMinimo, encomendavel, imprimirCozinha, imprimirProducao, ncm, cfop, csosn, origem };
+    const payload = { codigo, nombre, categoriaId, precio, tipoUnidad, descripcion, stockActual, stockMinimo, encomendavel, imprimirCozinha, imprimirProducao, imprimirCaixa, ncm, cfop, csosn, origem };
     try {
       if (producto) {
         await editarProducto(producto.id, payload);
@@ -364,6 +366,22 @@ function ProductoForm({
         </span>
       </label>
 
+      <label htmlFor="imprimirCaixa" className="flex cursor-pointer items-start gap-2 text-sm">
+        <input
+          id="imprimirCaixa"
+          type="checkbox"
+          checked={imprimirCaixa}
+          onChange={(e) => setImprimirCaixa(e.target.checked)}
+          className="mt-0.5 size-4 accent-primary"
+        />
+        <span>
+          Imprimir no caixa
+          <span className="block text-xs text-muted-foreground">
+            O produto sai na impressora do caixa quando for pedido.
+          </span>
+        </span>
+      </label>
+
       <DialogFooter>
         <Button type="submit" disabled={loading}>
           {loading ? "Salvando..." : "Salvar"}
@@ -429,6 +447,7 @@ export function ProductosManager({
             <TableHead>Encomenda</TableHead>
             <TableHead>Cozinha</TableHead>
             <TableHead>Produção</TableHead>
+            <TableHead>Caixa</TableHead>
             <TableHead>Fiscal</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="text-right">Ações</TableHead>
@@ -456,6 +475,7 @@ export function ProductosManager({
                 <TableCell>{p.encomendavel ? "Sim" : ""}</TableCell>
                 <TableCell>{p.imprimirCozinha ? "Sim" : ""}</TableCell>
                 <TableCell>{p.imprimirProducao ? "Sim" : ""}</TableCell>
+                <TableCell>{p.imprimirCaixa ? "Sim" : ""}</TableCell>
                 <TableCell>{fiscalIncompleto(p) ? <Badge variant="outline">Incompleto</Badge> : ""}</TableCell>
                 <TableCell>
                   <Badge variant={p.activo ? "default" : "outline"}>

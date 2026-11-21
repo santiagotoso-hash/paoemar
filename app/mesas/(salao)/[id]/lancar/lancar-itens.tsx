@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ChevronRight, NotebookPen, Plus, Search, Users } from "lucide-react";
+import { ArrowLeft, ChevronRight, NotebookPen, Search, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { formatBRL } from "@/lib/format";
@@ -130,7 +131,7 @@ export function LancarItens({
         />
       </div>
 
-      <div role="group" aria-label="Categorias" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+      <div role="group" aria-label="Categorias" className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {[{ id: null, nombre: "Todas", icono: null } as const, ...categorias].map((c) => {
           const ativo = categoriaId === c.id;
           return (
@@ -140,10 +141,10 @@ export function LancarItens({
               aria-pressed={ativo}
               onClick={() => setCategoriaId(c.id)}
               className={cn(
-                "min-h-11 shrink-0 rounded-full border px-4 text-sm font-medium transition-colors",
+                "flex h-auto min-h-12 w-full min-w-0 items-center justify-center gap-2 rounded-md border px-2 py-2 text-center text-sm font-medium leading-tight whitespace-normal break-words shadow-sm transition-colors",
                 ativo
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
+                  ? "border-primary bg-primary text-primary-foreground shadow"
+                  : "bg-card text-card-foreground hover:bg-muted"
               )}
             >
               {c.icono ? `${c.icono} ` : ""}
@@ -158,71 +159,60 @@ export function LancarItens({
           Nenhum produto encontrado.
         </p>
       ) : (
-        <ul className="flex flex-col divide-y rounded-2xl border bg-card">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {visiveis.map((p) => {
             const comOpcoes = temOpcoes(p);
             const linhaSimples = comOpcoes ? undefined : pendentes.find((i) => i.chave === chaveSimples(p));
             const qtd = comOpcoes ? qtdNoPedido(p.id) : (linhaSimples?.qtd ?? 0);
             // Linhas deste produto com observação/opções (a linha "simples" fica no contador).
             const linhasDetalhe = pendentes.filter((i) => i.productoId === p.id && i.chave !== linhaSimples?.chave);
+            const tocar = () => (comOpcoes ? setProdutoAberto(p) : mudarSimples(p, qtd + 1));
             return (
-              <li key={p.id} className="flex flex-col gap-1 px-3 py-2">
-                <div className="flex min-h-12 items-center gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium leading-snug">{p.nombre}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {comOpcoes && p.grupos.length > 0 ? "a partir de " : ""}
-                    {formatBRL(comOpcoes ? precoMinimo(p) : p.precio)}
-                    {comOpcoes && qtd > 0 && (
-                      <span className="ml-2 font-medium text-primary">· {qtd} no pedido</span>
-                    )}
-                  </p>
-                </div>
-                {!comOpcoes && (
-                  <Button
-                    variant="ghost"
-                    size="icon-touch"
-                    aria-label={
-                      linhaSimples ? `Escrever observação em ${p.nombre}` : `Adicionar ${p.nombre} com observação`
+              <div key={p.id} className="flex min-w-0 flex-col gap-2">
+                <Card
+                  role="button"
+                  tabIndex={0}
+                  aria-label={comOpcoes ? `Escolher opções de ${p.nombre}` : `Adicionar ${p.nombre}`}
+                  onClick={tocar}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      tocar();
                     }
-                    onClick={() => (linhaSimples ? setEditandoObs(linhaSimples) : setProdutoAberto(p))}
-                    className="text-muted-foreground hover:text-primary"
-                  >
-                    <NotebookPen />
-                  </Button>
+                  }}
+                  className={cn("cursor-pointer transition-colors hover:bg-muted", qtd > 0 && "ring-2 ring-primary")}
+                >
+                  <CardContent className="flex flex-col gap-1 p-3">
+                    <span className="text-sm font-medium">{p.nombre}</span>
+                    <span className="text-sm text-muted-foreground">
+                      {comOpcoes && p.grupos.length > 0 ? "a partir de " : ""}
+                      {formatBRL(comOpcoes ? precoMinimo(p) : p.precio)}
+                    </span>
+                    {comOpcoes && qtd > 0 && <span className="text-xs font-medium text-primary">{qtd} no pedido</span>}
+                  </CardContent>
+                </Card>
+                {!comOpcoes && qtd > 0 && linhaSimples && (
+                  <div className="flex items-center justify-between gap-1">
+                    <Contador
+                      valor={qtd}
+                      min={1}
+                      onChange={(v) => mudarSimples(p, v)}
+                      onRemover={() => mudarSimples(p, 0)}
+                      nome={p.nombre}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon-touch"
+                      aria-label={`Escrever observação em ${p.nombre}`}
+                      onClick={() => setEditandoObs(linhaSimples)}
+                      className="text-muted-foreground hover:text-primary"
+                    >
+                      <NotebookPen />
+                    </Button>
+                  </div>
                 )}
-                {comOpcoes ? (
-                  <Button
-                    variant="outline"
-                    size="icon-touch"
-                    aria-label={`Escolher opções de ${p.nombre}`}
-                    onClick={() => setProdutoAberto(p)}
-                    className="border-primary/40 text-primary"
-                  >
-                    <Plus />
-                  </Button>
-                ) : qtd > 0 ? (
-                  <Contador
-                    valor={qtd}
-                    min={1}
-                    onChange={(v) => mudarSimples(p, v)}
-                    onRemover={() => mudarSimples(p, 0)}
-                    nome={p.nombre}
-                  />
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="icon-touch"
-                    aria-label={`Adicionar ${p.nombre}`}
-                    onClick={() => mudarSimples(p, 1)}
-                    className="border-primary/40 text-primary"
-                  >
-                    <Plus />
-                  </Button>
-                )}
-                </div>
                 {linhasDetalhe.length > 0 && (
-                  <ul className="flex flex-col gap-1 pb-1">
+                  <ul className="flex flex-col gap-1">
                     {linhasDetalhe.map((i) => (
                       <li key={i.chave}>
                         <button
@@ -245,10 +235,10 @@ export function LancarItens({
                     ))}
                   </ul>
                 )}
-              </li>
+              </div>
             );
           })}
-        </ul>
+        </div>
       )}
 
       <ObservacaoSheet

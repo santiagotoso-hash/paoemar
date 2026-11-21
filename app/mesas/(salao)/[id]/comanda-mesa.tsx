@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { formatBRL, formatHora, redondear2, tempoDesde } from "@/lib/format";
-import { dividirConta, nomeMesa, TAXA_SERVICO } from "@/lib/mesas";
+import { dividirConta, nomeMesa } from "@/lib/mesas";
 import type { BandeiraValue, MetodoPagoValue } from "@/lib/metodos-pago";
 import { FormaPagamento, pagamentoCompleto } from "@/components/forma-pagamento";
 import { Contador } from "../../contador";
@@ -28,7 +28,7 @@ import { useMesaSomenteLeitura } from "../../guarda-saida-mesa";
 import { ObservacaoSheet } from "../../observacao";
 import { CancelarItemSheet } from "./cancelar-item-sheet";
 import { LiberarMesaSheet } from "./liberar-mesa-sheet";
-import { alterarPessoas, alternarServico, fecharConta, imprimirPreconta } from "../../actions";
+import { alterarPessoas, fecharConta, imprimirPreconta } from "../../actions";
 
 type Estado = "RECIBIDO" | "EN_PREPARACION" | "LISTO" | "ENTREGADO";
 
@@ -58,7 +58,6 @@ type Mesa = {
   personas: number | null;
   abertaEm: string;
   atendente: string | null;
-  servicio: boolean;
 };
 
 const ESTADO: Record<Estado, { label: string; className: string }> = {
@@ -96,7 +95,6 @@ export function ComandaMesa({
   const router = useRouter();
   const [pendentes, setPendentes] = usePendentes(mesa.id);
   const [lancando, setLancando] = useState(false);
-  const [servico, setServico] = useState(mesa.servicio);
   const [fechando, setFechando] = useState(false);
   const [editandoObs, setEditandoObs] = useState<ItemPendente | null>(null);
   const [pessoas, setPessoas] = useState(mesa.personas ?? 1);
@@ -113,14 +111,11 @@ export function ComandaMesa({
     return () => clearInterval(t);
   }, [router]);
 
-  useEffect(() => setServico(mesa.servicio), [mesa.servicio]);
-
   const titulo = nomeMesa(mesa.tipo, mesa.codigo);
   const totalPendentes = pendentes.reduce((acc, i) => acc + totalPendente(i), 0);
   // Mesmo cálculo do servidor em fecharConta (ele confere este total antes de cobrar).
   const consumo = redondear2(rodadas.reduce((acc, r) => acc + r.itens.reduce((a, i) => a + i.total, 0), 0));
-  const valorServico = servico ? redondear2(consumo * TAXA_SERVICO) : 0;
-  const totalMesa = redondear2(consumo + valorServico);
+  const totalMesa = consumo;
   const temLancados = rodadas.some((r) => r.itens.length > 0);
 
   function mudarQtd(chave: string, qtd: number) {
@@ -154,16 +149,6 @@ export function ComandaMesa({
     } catch {
       setPessoas(anterior);
       toast.error("Não foi possível alterar o número de pessoas");
-    }
-  }
-
-  async function handleServico(valor: boolean) {
-    setServico(valor);
-    try {
-      await alternarServico(mesa.id, valor);
-    } catch {
-      setServico(!valor);
-      toast.error("Não foi possível alterar o serviço");
     }
   }
 
@@ -357,18 +342,6 @@ export function ComandaMesa({
           <span className="text-muted-foreground">Consumo lançado</span>
           <span className="tabular-nums">{formatBRL(consumo)}</span>
         </div>
-        <div className="flex min-h-11 items-center justify-between gap-3 text-sm">
-          <label htmlFor="servico" className="flex flex-1 cursor-pointer flex-col">
-            <span className="text-muted-foreground">Serviço ({Math.round(TAXA_SERVICO * 100)}%)</span>
-            {!servico && <span className="text-xs text-muted-foreground">Removido a pedido do cliente</span>}
-          </label>
-          <span className={cn("tabular-nums", !servico && "text-muted-foreground line-through")}>
-            {formatBRL(servico ? valorServico : Math.round(consumo * TAXA_SERVICO * 100) / 100)}
-          </span>
-          {!somenteLeitura && (
-            <Switch id="servico" checked={servico} onChange={handleServico} label="Cobrar serviço" />
-          )}
-        </div>
         <div className="mt-1 flex items-baseline justify-between border-t pt-3">
           <span className="font-heading text-lg font-semibold">Total da mesa</span>
           <span className="font-heading text-2xl font-semibold tabular-nums">{formatBRL(totalMesa)}</span>
@@ -472,7 +445,6 @@ export function ComandaMesa({
         mesaId={mesa.id}
         titulo={titulo}
         consumo={consumo}
-        servico={valorServico}
         total={totalMesa}
         pessoas={pessoas}
         onFechada={() => {
@@ -517,44 +489,6 @@ function StatusRodada({ estado }: { estado: Estado }) {
   );
 }
 
-function Switch({
-  id,
-  checked,
-  onChange,
-  label,
-}: {
-  id: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  label: string;
-}) {
-  return (
-    <button
-      id={id}
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      onClick={() => onChange(!checked)}
-      className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center"
-    >
-      <span
-        className={cn(
-          "relative inline-flex h-7 w-12 items-center rounded-full transition-colors",
-          checked ? "bg-primary" : "bg-border"
-        )}
-      >
-        <span
-          className={cn(
-            "inline-block size-5 rounded-full bg-card shadow transition-transform",
-            checked ? "translate-x-6" : "translate-x-1"
-          )}
-        />
-      </span>
-    </button>
-  );
-}
-
 /** "R$ 33,33 por pessoa" (+ quem paga o centavo que sobra, para a soma bater). */
 function PorPessoa({
   total,
@@ -590,7 +524,6 @@ function FecharContaDialog({
   mesaId,
   titulo,
   consumo,
-  servico,
   total,
   pessoas,
   onFechada,
@@ -600,7 +533,6 @@ function FecharContaDialog({
   mesaId: string;
   titulo: string;
   consumo: number;
-  servico: number;
   total: number;
   pessoas: number;
   onFechada: () => void;
@@ -656,10 +588,6 @@ function FecharContaDialog({
               <span className="text-muted-foreground">Consumo</span>
               <span className="tabular-nums">{formatBRL(consumo)}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Serviço</span>
-              <span className="tabular-nums">{formatBRL(servico)}</span>
-            </div>
             <div className="flex items-center justify-between gap-2">
               <label htmlFor="ajuste-conta" className="flex flex-col">
                 <span className="text-muted-foreground">Desconto / adicional</span>
@@ -703,7 +631,6 @@ function FecharContaDialog({
                 <Users className="size-4 text-primary" aria-hidden />
                 <span>
                   Dividido por <strong>{pessoas}</strong>
-                  {servico > 0 && <span className="block text-xs text-muted-foreground">com serviço incluído</span>}
                 </span>
               </div>
               <PorPessoa total={totalFinal} pessoas={pessoas} className="text-right" destaque />

@@ -22,6 +22,7 @@ export default async function ProductosPage() {
     encomendavel: p.encomendavel,
     imprimirCozinha: p.imprimirCozinha,
     imprimirProducao: p.imprimirProducao,
+    imprimirCaixa: p.imprimirCaixa,
     ncm: p.ncm,
     cfop: p.cfop,
     csosn: p.csosn,

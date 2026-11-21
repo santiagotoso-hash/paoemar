@@ -1,8 +1,8 @@
 export const DESTINOS = ["COZINHA", "PRODUCAO", "CAIXA"] as const;
 export type Destino = (typeof DESTINOS)[number];
 
-/** Destinos que recebem itens de pedido (marcações do produto). O caixa imprime contas, não itens. */
-export const DESTINOS_DE_PRODUTO = ["COZINHA", "PRODUCAO"] as const;
+/** Destinos que recebem itens de pedido (marcações do produto). O caixa também imprime contas (pré-conta e recibo). */
+export const DESTINOS_DE_PRODUTO = ["COZINHA", "PRODUCAO", "CAIXA"] as const;
 export type DestinoDeProduto = (typeof DESTINOS_DE_PRODUTO)[number];
 
 export const CONEXOES = ["REDE", "USB", "BLUETOOTH"] as const;

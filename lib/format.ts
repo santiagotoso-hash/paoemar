@@ -1,5 +1,8 @@
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
+/** Embalagem opcional (para viagem): valor fixo somado à venda. */
+export const VALOR_EMBALAGEM = 3;
+
 /** 12.5 -> "R$ 12,50" */
 export function formatBRL(valor: number) {
   return brl.format(valor);

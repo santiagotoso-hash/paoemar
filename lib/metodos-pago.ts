@@ -16,7 +16,7 @@ export const BANDEIRAS = [
   { value: "MASTERCARD", label: "Mastercard" },
   { value: "ELO", label: "Elo" },
   { value: "AMEX", label: "American Express" },
-  { value: "HIPERCARD", label: "Hipercard" },
+  { value: "VOUCHER_REFEICAO", label: "Voucher Refeição" },
   { value: "OUTRA", label: "Outra" },
 ] as const;
 
@@ -37,7 +37,7 @@ export const BANDEIRA_LABEL: Record<string, string> = Object.fromEntries(BANDEIR
 /** Campos de pagamento para os schemas das actions (use com `.superRefine(validarPagamento)`). */
 export const camposPagamento = {
   metodoPago: z.enum(["EFECTIVO", "TARJETA_CREDITO", "TARJETA_DEBITO", "PIX"]),
-  bandeira: z.enum(["VISA", "MASTERCARD", "ELO", "AMEX", "HIPERCARD", "OUTRA"]).nullish(),
+  bandeira: z.enum(["VISA", "MASTERCARD", "ELO", "AMEX", "VOUCHER_REFEICAO", "OUTRA"]).nullish(),
 };
 
 export function validarPagamento(
